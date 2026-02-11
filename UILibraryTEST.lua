@@ -480,6 +480,77 @@ function UILibrary.Load(GUITitle)
 				Tween(DropdownExpander, {Rotation = DropdownToggle and 135 or 0})
 			end)
 		end
+
+function PageLibrary.AddSlider(Text, ConfigurationDictionary, Callback, Parent)
+    local Configuration = ConfigurationDictionary
+    local Minimum = Configuration.Min or Configuration.min or Configuration.Minimum or Configuration.minimum
+    local Maximum = Configuration.Max or Configuration.max or Configuration.Maximum or Configuration.maximum
+    local Default = Configuration.Def or Configuration.def or Configuration.Default or Configuration.default
+    local UseDecimal = Configuration.UseDecimal or false -- new boolean
+
+    if Minimum > Maximum then
+        Minimum, Maximum = Maximum, Minimum
+    end
+
+    Default = math.clamp(Default, Minimum, Maximum)
+    local DefaultScale = (Default - Minimum) / (Maximum - Minimum)
+
+    local SliderContainer = Frame()
+    SliderContainer.Name = Text.."SLIDER"
+    SliderContainer.Size = UDim2.new(1,0,0,20)
+    SliderContainer.BackgroundTransparency = 1
+    SliderContainer.Parent = Parent or DisplayPage
+
+    local SliderForeground = RoundBox(5)
+    SliderForeground.Name = "SliderForeground"
+    SliderForeground.ImageColor3 = Color3.fromRGB(35,35,35)
+    SliderForeground.Size = UDim2.new(1,0,1,0)
+    SliderForeground.Parent = SliderContainer
+
+    local SliderButton = TextButton(Text..": "..Default)
+    SliderButton.Size = UDim2.new(1,0,1,0)
+    SliderButton.ZIndex = 6
+    SliderButton.Parent = SliderForeground
+
+    local SliderFill = RoundBox(5)
+    SliderFill.Size = UDim2.new(DefaultScale,0,1,0)
+    SliderFill.ImageColor3 = Color3.fromRGB(70,70,70)
+    SliderFill.ZIndex = 5
+    SliderFill.ImageTransparency = 0.7
+    SliderFill.Parent = SliderButton
+
+    local function UpdateValue(XScale)
+        local Value = Minimum + ((Maximum - Minimum) * XScale)
+        if UseDecimal then
+            Value = math.floor(Value * 100) / 100 -- round to 2 decimals
+        else
+            Value = math.floor(Value)
+        end
+        SliderButton.Text = Text..": "..tostring(Value)
+        SliderFill.Size = UDim2.new(XScale,0,1,0)
+        Callback(Value)
+    end
+
+    SliderButton.MouseButton1Down:Connect(function()
+        local X, Y, XScale = GetXY(SliderButton)
+        UpdateValue(XScale)
+
+        local MoveConn
+        local EndConn
+        MoveConn = Mouse.Move:Connect(function()
+            local X, Y, XScale = GetXY(SliderButton)
+            UpdateValue(XScale)
+        end)
+
+        EndConn = UserInputService.InputEnded:Connect(function(UserInput)
+            if UserInput.UserInputType == Enum.UserInputType.MouseButton1 then
+                MoveConn:Disconnect()
+                EndConn:Disconnect()
+            end
+        end)
+    end)
+end
+
 		
 function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
 	DefaultColour = DefaultColour or Color3.fromRGB(255,255,255)
@@ -596,76 +667,6 @@ function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
 	if Callback then
 		Callback(DefaultColour)
 	end
-end
-
-function PageLibrary.AddSlider(Text, ConfigurationDictionary, Callback, Parent)
-    local Configuration = ConfigurationDictionary
-    local Minimum = Configuration.Min or Configuration.min or Configuration.Minimum or Configuration.minimum
-    local Maximum = Configuration.Max or Configuration.max or Configuration.Maximum or Configuration.maximum
-    local Default = Configuration.Def or Configuration.def or Configuration.Default or Configuration.default
-    local UseDecimal = Configuration.UseDecimal or false -- new boolean
-
-    if Minimum > Maximum then
-        Minimum, Maximum = Maximum, Minimum
-    end
-
-    Default = math.clamp(Default, Minimum, Maximum)
-    local DefaultScale = (Default - Minimum) / (Maximum - Minimum)
-
-    local SliderContainer = Frame()
-    SliderContainer.Name = Text.."SLIDER"
-    SliderContainer.Size = UDim2.new(1,0,0,20)
-    SliderContainer.BackgroundTransparency = 1
-    SliderContainer.Parent = Parent or DisplayPage
-
-    local SliderForeground = RoundBox(5)
-    SliderForeground.Name = "SliderForeground"
-    SliderForeground.ImageColor3 = Color3.fromRGB(35,35,35)
-    SliderForeground.Size = UDim2.new(1,0,1,0)
-    SliderForeground.Parent = SliderContainer
-
-    local SliderButton = TextButton(Text..": "..Default)
-    SliderButton.Size = UDim2.new(1,0,1,0)
-    SliderButton.ZIndex = 6
-    SliderButton.Parent = SliderForeground
-
-    local SliderFill = RoundBox(5)
-    SliderFill.Size = UDim2.new(DefaultScale,0,1,0)
-    SliderFill.ImageColor3 = Color3.fromRGB(70,70,70)
-    SliderFill.ZIndex = 5
-    SliderFill.ImageTransparency = 0.7
-    SliderFill.Parent = SliderButton
-
-    local function UpdateValue(XScale)
-        local Value = Minimum + ((Maximum - Minimum) * XScale)
-        if UseDecimal then
-            Value = math.floor(Value * 100) / 100 -- round to 2 decimals
-        else
-            Value = math.floor(Value)
-        end
-        SliderButton.Text = Text..": "..tostring(Value)
-        SliderFill.Size = UDim2.new(XScale,0,1,0)
-        Callback(Value)
-    end
-
-    SliderButton.MouseButton1Down:Connect(function()
-        local X, Y, XScale = GetXY(SliderButton)
-        UpdateValue(XScale)
-
-        local MoveConn
-        local EndConn
-        MoveConn = Mouse.Move:Connect(function()
-            local X, Y, XScale = GetXY(SliderButton)
-            UpdateValue(XScale)
-        end)
-
-        EndConn = UserInputService.InputEnded:Connect(function(UserInput)
-            if UserInput.UserInputType == Enum.UserInputType.MouseButton1 then
-                MoveConn:Disconnect()
-                EndConn:Disconnect()
-            end
-        end)
-    end)
 end
 
 function PageLibrary.AddBlank(Parent)
