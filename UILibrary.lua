@@ -484,99 +484,121 @@ function UILibrary.Load(GUITitle)
 		function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
 			local DefaultColour = DefaultColour or Color3.fromRGB(255,255,255)
 			
-			local ColourDictionary = {
-				white = Color3.fromRGB(255,255,255),
-				black = Color3.fromRGB(0,0,0),
-				red = Color3.fromRGB(255,0,0),
-				green = Color3.fromRGB(0,255,0),
-				purple = Color3.fromRGB(180,0,255),
-				yellow = Color3.fromRGB(255,255,0),
-				blue = Color3.fromRGB(0,0,255)
-			}
-			
-			if typeof(DefaultColour) == "table" then
-				DefaultColour = Color3.fromRGB(DefaultColour[1] or 255, DefaultColour[2] or 255, DefaultColour[3] or 255)
-			elseif typeof(DefaultColour) == "string" then
-				DefaultColour = ColourDictionary[DefaultColour:lower()] or ColourDictionary["white"]
-			end
-			
-			local PickerContainer = Frame()
-			PickerContainer.ClipsDescendants = true
-			PickerContainer.Size = UDim2.new(1,0,0,20)
-			PickerContainer.Name = Text.."COLOURPICKER"
-			PickerContainer.BackgroundTransparency = 1
-			PickerContainer.Parent = DisplayPage
-			
-			local ColourTracker = Instance.new("Color3Value")
-			ColourTracker.Value = DefaultColour
-			ColourTracker.Parent = PickerContainer
-			
-			local PickerLeftSide, PickerRightSide, PickerFrame = RoundBox(5), RoundBox(5), RoundBox(5)
-			
-			PickerLeftSide.Size = UDim2.new(1,-22,1,0)
-			PickerLeftSide.ImageColor3 = Color3.fromRGB(35,35,35)
-			PickerLeftSide.Parent = PickerContainer
-			
-			PickerRightSide.Size = UDim2.new(0,20,1,0)
-			PickerRightSide.Position = UDim2.new(1,-20,0,0)
-			PickerRightSide.ImageColor3 = DefaultColour
-			PickerRightSide.Parent = PickerContainer
-			
-			PickerFrame.ImageColor3 = Color3.fromRGB(35,35,35)
-			PickerFrame.Size = UDim2.new(1,-22,0,60)
-			PickerFrame.Position = UDim2.new(0,0,0,20)
-			PickerFrame.Parent = PickerContainer
-			
-			local PickerList = Instance.new("UIListLayout")
-			PickerList.SortOrder = Enum.SortOrder.LayoutOrder
-			PickerList.Parent = PickerFrame
-			
-			local RedPicker = PageLibrary.AddSlider("R", {Min = 0, Max = 255, Def = ColourTracker.Value.R * 255}, function(Value)
-				ColourTracker.Value = Color3.fromRGB(Value, ColourTracker.Value.G * 255, ColourTracker.Value.B * 255)
-				Callback(ColourTracker.Value)
-			end, PickerFrame)
-			
-			local BluePicker = PageLibrary.AddSlider("G", {Min = 0, Max = 255, Def = ColourTracker.Value.G * 255}, function(Value)
-				ColourTracker.Value = Color3.fromRGB(ColourTracker.Value.R * 255, Value, ColourTracker.Value.B * 255)
-				Callback(ColourTracker.Value)
-			end, PickerFrame)
-			
-			local GreenPicker = PageLibrary.AddSlider("B", {Min = 0, Max = 255, Def = ColourTracker.Value.B * 255}, function(Value)
-				ColourTracker.Value = Color3.fromRGB(ColourTracker.Value.R * 255, ColourTracker.Value.G * 255, Value)
-				Callback(ColourTracker.Value)
-			end, PickerFrame)
-			
-			local EffectLeft, EffectRight = Frame(), Frame()
-			
-			EffectLeft.BackgroundColor3 = Color3.fromRGB(35,35,35)
-			EffectLeft.Position = UDim2.new(1,-5,0,0)
-			EffectLeft.Size = UDim2.new(0,5,1,0)
-			EffectLeft.Parent = PickerLeftSide
-			
-			EffectRight.BackgroundColor3 = DefaultColour
-			EffectRight.Size = UDim2.new(0,5,1,0)
-			EffectRight.Parent = PickerRightSide
-			
-			local PickerLabel = TextLabel(Text, 12)
-			PickerLabel.Size = UDim2.new(1,0,0,20)
-			PickerLabel.Parent = PickerLeftSide
-			
-			ColourTracker:GetPropertyChangedSignal("Value"):Connect(function()
-				local NewValue = ColourTracker.Value
-				EffectRight.BackgroundColor3 = NewValue
-				PickerRightSide.ImageColor3 = NewValue
-			end)
-			
-			local PickerToggle = false
-			
-			local PickerButton = TextButton("")
-			PickerButton.Parent = PickerRightSide
-			
-			PickerButton.MouseButton1Down:Connect(function()
-				PickerToggle = not PickerToggle
-				Tween(PickerContainer, {Size = PickerToggle and UDim2.new(1,0,0,80) or UDim2.new(1,0,0,20)})
-			end)
+function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
+	local ColourDictionary = {
+		white = Color3.fromRGB(255,255,255),
+		black = Color3.fromRGB(0,0,0),
+		red = Color3.fromRGB(255,0,0),
+		green = Color3.fromRGB(0,255,0),
+		purple = Color3.fromRGB(180,0,255),
+		yellow = Color3.fromRGB(255,255,0),
+		blue = Color3.fromRGB(0,0,255)
+	}
+
+	-- resolve default colour
+	if typeof(DefaultColour) == "string" then
+		DefaultColour = ColourDictionary[DefaultColour:lower()] or ColourDictionary.white
+	elseif typeof(DefaultColour) == "table" then
+		DefaultColour = Color3.fromRGB(DefaultColour[1] or 255, DefaultColour[2] or 255, DefaultColour[3] or 255)
+	elseif typeof(DefaultColour) ~= "Color3" then
+		DefaultColour = ColourDictionary.white
+	end
+
+	local PickerContainer = Frame()
+	PickerContainer.ClipsDescendants = true
+	PickerContainer.Size = UDim2.new(1,0,0,20)
+	PickerContainer.Name = Text.."COLOURPICKER"
+	PickerContainer.BackgroundTransparency = 1
+	PickerContainer.Parent = DisplayPage
+
+	local ColourTracker = Instance.new("Color3Value")
+	ColourTracker.Value = DefaultColour
+	ColourTracker.Parent = PickerContainer
+
+	local PickerLeftSide, PickerRightSide, PickerFrame = RoundBox(5), RoundBox(5), RoundBox(5)
+
+	PickerLeftSide.Size = UDim2.new(1,-22,1,0)
+	PickerLeftSide.ImageColor3 = Color3.fromRGB(35,35,35)
+	PickerLeftSide.Parent = PickerContainer
+
+	PickerRightSide.Size = UDim2.new(0,20,1,0)
+	PickerRightSide.Position = UDim2.new(1,-20,0,0)
+	PickerRightSide.ImageColor3 = DefaultColour
+	PickerRightSide.Parent = PickerContainer
+
+	PickerFrame.ImageColor3 = Color3.fromRGB(35,35,35)
+	PickerFrame.Size = UDim2.new(1,-22,0,60)
+	PickerFrame.Position = UDim2.new(0,0,0,20)
+	PickerFrame.Parent = PickerContainer
+
+	local PickerList = Instance.new("UIListLayout")
+	PickerList.SortOrder = Enum.SortOrder.LayoutOrder
+	PickerList.Parent = PickerFrame
+
+	-- cache rgb as 0-255 ints
+	local r = math.round(DefaultColour.R * 255)
+	local g = math.round(DefaultColour.G * 255)
+	local b = math.round(DefaultColour.B * 255)
+
+	local function update()
+		local newColor = Color3.fromRGB(r,g,b)
+		ColourTracker.Value = newColor
+		if Callback then
+			Callback(newColor)
 		end
+	end
+
+	PageLibrary.AddSlider("R", {Min = 0, Max = 255, Def = r}, function(Value)
+		r = Value
+		update()
+	end, PickerFrame)
+
+	PageLibrary.AddSlider("G", {Min = 0, Max = 255, Def = g}, function(Value)
+		g = Value
+		update()
+	end, PickerFrame)
+
+	PageLibrary.AddSlider("B", {Min = 0, Max = 255, Def = b}, function(Value)
+		b = Value
+		update()
+	end, PickerFrame)
+
+	local EffectLeft, EffectRight = Frame(), Frame()
+
+	EffectLeft.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	EffectLeft.Position = UDim2.new(1,-5,0,0)
+	EffectLeft.Size = UDim2.new(0,5,1,0)
+	EffectLeft.Parent = PickerLeftSide
+
+	EffectRight.BackgroundColor3 = DefaultColour
+	EffectRight.Size = UDim2.new(0,5,1,0)
+	EffectRight.Parent = PickerRightSide
+
+	local PickerLabel = TextLabel(Text, 12)
+	PickerLabel.Size = UDim2.new(1,0,0,20)
+	PickerLabel.Parent = PickerLeftSide
+
+	ColourTracker:GetPropertyChangedSignal("Value"):Connect(function()
+		local NewValue = ColourTracker.Value
+		EffectRight.BackgroundColor3 = NewValue
+		PickerRightSide.ImageColor3 = NewValue
+	end)
+
+	local PickerToggle = false
+
+	local PickerButton = TextButton("")
+	PickerButton.Parent = PickerRightSide
+
+	PickerButton.MouseButton1Down:Connect(function()
+		PickerToggle = not PickerToggle
+		Tween(PickerContainer, {Size = PickerToggle and UDim2.new(1,0,0,80) or UDim2.new(1,0,0,20)})
+	end)
+
+	-- fire callback immediately with default
+	if Callback then
+		Callback(DefaultColour)
+	end
+end
 
 function PageLibrary.AddSlider(Text, ConfigurationDictionary, Callback, Parent)
     local Configuration = ConfigurationDictionary
