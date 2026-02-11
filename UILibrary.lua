@@ -489,6 +489,8 @@ function UILibrary.Load(GUITitle)
 				black = Color3.fromRGB(0,0,0),
 				red = Color3.fromRGB(255,0,0),
 				green = Color3.fromRGB(0,255,0),
+				purple = Color3.fromRGB(180,0,255),
+				yellow = Color3.fromRGB(255,255,0),
 				blue = Color3.fromRGB(0,0,255)
 			}
 			
