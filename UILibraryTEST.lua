@@ -481,10 +481,9 @@ function UILibrary.Load(GUITitle)
 			end)
 		end
 		
-		function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
-			local DefaultColour = DefaultColour or Color3.fromRGB(255,255,255)
-			
 function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
+	DefaultColour = DefaultColour or Color3.fromRGB(255,255,255)
+
 	local ColourDictionary = {
 		white = Color3.fromRGB(255,255,255),
 		black = Color3.fromRGB(0,0,0),
@@ -495,13 +494,11 @@ function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
 		blue = Color3.fromRGB(0,0,255)
 	}
 
-	-- resolve default colour
-	if typeof(DefaultColour) == "string" then
-		DefaultColour = ColourDictionary[DefaultColour:lower()] or ColourDictionary.white
-	elseif typeof(DefaultColour) == "table" then
+	-- support: "purple", {r,g,b}, Color3
+	if typeof(DefaultColour) == "table" then
 		DefaultColour = Color3.fromRGB(DefaultColour[1] or 255, DefaultColour[2] or 255, DefaultColour[3] or 255)
-	elseif typeof(DefaultColour) ~= "Color3" then
-		DefaultColour = ColourDictionary.white
+	elseif typeof(DefaultColour) == "string" then
+		DefaultColour = ColourDictionary[DefaultColour:lower()] or ColourDictionary.white
 	end
 
 	local PickerContainer = Frame()
@@ -535,32 +532,33 @@ function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
 	PickerList.SortOrder = Enum.SortOrder.LayoutOrder
 	PickerList.Parent = PickerFrame
 
-	-- cache rgb as 0-255 ints
+	-- keep integer RGB (0-255) to avoid drift
 	local r = math.round(DefaultColour.R * 255)
 	local g = math.round(DefaultColour.G * 255)
 	local b = math.round(DefaultColour.B * 255)
 
-	local function update()
-		local newColor = Color3.fromRGB(r,g,b)
-		ColourTracker.Value = newColor
+	local function apply()
+		local c = Color3.fromRGB(r, g, b)
+		ColourTracker.Value = c
 		if Callback then
-			Callback(newColor)
+			Callback(c)
 		end
 	end
 
+	-- IMPORTANT: correct labels (R, G, B)
 	PageLibrary.AddSlider("R", {Min = 0, Max = 255, Def = r}, function(Value)
 		r = Value
-		update()
+		apply()
 	end, PickerFrame)
 
 	PageLibrary.AddSlider("G", {Min = 0, Max = 255, Def = g}, function(Value)
 		g = Value
-		update()
+		apply()
 	end, PickerFrame)
 
 	PageLibrary.AddSlider("B", {Min = 0, Max = 255, Def = b}, function(Value)
 		b = Value
-		update()
+		apply()
 	end, PickerFrame)
 
 	local EffectLeft, EffectRight = Frame(), Frame()
@@ -594,7 +592,7 @@ function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
 		Tween(PickerContainer, {Size = PickerToggle and UDim2.new(1,0,0,80) or UDim2.new(1,0,0,20)})
 	end)
 
-	-- fire callback immediately with default
+	-- fire callback immediately so settings apply on creation
 	if Callback then
 		Callback(DefaultColour)
 	end
