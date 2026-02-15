@@ -241,8 +241,8 @@ local TitleLogo = Instance.new("ImageLabel")
 TitleLogo.Name = "TitleLogo"
 TitleLogo.BackgroundTransparency = 1
 TitleLogo.Image = "rbxassetid://139644262377528"
-TitleLogo.Size = UDim2.new(0, 24, 0, 24)
-TitleLogo.Position = UDim2.new(0, 4, 0, 0)
+TitleLogo.Size = UDim2.new(0, 32, 0, 32)
+TitleLogo.Position = UDim2.new(0, 8, 0, -8)
 TitleLogo.ZIndex = Level
 TitleLogo.Parent = TitleBar
 
