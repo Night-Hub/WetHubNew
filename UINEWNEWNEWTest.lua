@@ -241,7 +241,7 @@ local TitleLogo = Instance.new("ImageLabel")
 TitleLogo.Name = "TitleLogo"
 TitleLogo.BackgroundTransparency = 1
 TitleLogo.Image = "rbxassetid://139644262377528"
-TitleLogo.Size = UDim2.new(0, 16, 0, 16)
+TitleLogo.Size = UDim2.new(0, 32, 0, 32)
 TitleLogo.Position = UDim2.new(0, 4, 0, 2)
 TitleLogo.ZIndex = Level
 TitleLogo.Parent = TitleBar
@@ -1032,7 +1032,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	local Logo = Instance.new("ImageLabel")
 	Logo.BackgroundTransparency = 1
 	Logo.Size = UDim2.new(0, 42, 0, 42)
-	Logo.Position = UDim2.new(0, 10, 0, 32)
+	Logo.Position = UDim2.new(0, 10, 0, 24)
 	Logo.Image = LogoImage
 	Logo.ZIndex = 10002
 	Logo.Parent = Card
