@@ -1072,8 +1072,17 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarBack.BackgroundTransparency = 1
 	BarFill.BackgroundTransparency = 1
 
-	Toast.Size = UDim2.new(0, 280, 0, 0)
-	TweenService:Create(Toast, TweenInfo.new(0.12, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, 82)}):Play()
+-- start offscreen right
+Toast.Position = UDim2.new(1, 300, 0, 0)
+Toast.Size = UDim2.new(0, 280, 0, 82)
+
+-- slide onto screen
+TweenService:Create(
+	Toast,
+	TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+	{Position = UDim2.new(0, 0, 0, 0)}
+):Play()
+
 
 	TweenService:Create(Card, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(TitleBar, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
@@ -1100,12 +1109,25 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	--// Progress drains to zero over Duration
 	TweenService:Create(BarFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
 
-	--// Cleanup after Duration (+ small out anim)
-	task.delay(Duration, function()
-		if not Toast or not Toast.Parent then
-			if conn then conn:Disconnect() end
-			return
-		end
+task.delay(Duration, function()
+	if not Toast or not Toast.Parent then
+		if conn then conn:Disconnect() end
+		return
+	end
+
+	-- slide offscreen right
+	local tweenOut = TweenService:Create(
+		Toast,
+		TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+		{Position = UDim2.new(1, 300, 0, 0)}
+	)
+
+	tweenOut:Play()
+	tweenOut.Completed:Wait()
+
+	if conn then conn:Disconnect() end
+	Toast:Destroy()
+end)
 
 		-- fade out
 		TweenService:Create(Card, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
