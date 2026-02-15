@@ -171,6 +171,116 @@ end
 
 local UILibrary = {}
 
+--// ========================
+--// CUSTOM NOTIFICATION (WetHub)
+--// Looks like Roblox toast, but fully custom
+--// ========================
+function UILibrary.CallNotification(TitleText, BodyText, Duration, Icon)
+	TitleText = tostring(TitleText or "WetHub")
+	BodyText = tostring(BodyText or "")
+	Duration = tonumber(Duration) or 4
+	Icon = tostring(Icon or "rbxthumb://type=Asset&id=6845502547&w=150&h=150")
+
+	local TargetParent = RunService:IsStudio() and Player:WaitForChild("PlayerGui") or CoreGuiService
+
+	-- Create notification holder once
+	local Holder = TargetParent:FindFirstChild("WetHubNotifications")
+	if not Holder then
+		Holder = Instance.new("ScreenGui")
+		Holder.Name = "WetHubNotifications"
+		Holder.IgnoreGuiInset = true
+		Holder.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		Holder.Parent = TargetParent
+
+		local Container = Instance.new("Frame")
+		Container.Name = "Container"
+		Container.AnchorPoint = Vector2.new(1, 1)
+		Container.Position = UDim2.new(1, -10, 1, -10)
+		Container.Size = UDim2.new(0, 300, 1, -20)
+		Container.BackgroundTransparency = 1
+		Container.Parent = Holder
+
+		local Layout = Instance.new("UIListLayout")
+		Layout.Padding = UDim.new(0, 6)
+		Layout.SortOrder = Enum.SortOrder.LayoutOrder
+		Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+		Layout.Parent = Container
+	end
+
+	local Container = Holder.Container
+
+	--// Toast
+	local Toast = Instance.new("Frame")
+	Toast.Name = "Toast"
+	Toast.Size = UDim2.new(1, 0, 0, 70)
+	Toast.BackgroundTransparency = 1
+	Toast.ClipsDescendants = true
+	Toast.Parent = Container
+
+	local Background = Instance.new("ImageLabel")
+	Background.Name = "Background"
+	Background.Size = UDim2.new(1, 0, 1, 0)
+	Background.BackgroundTransparency = 1
+	Background.Image = "rbxassetid://3570695787"
+	Background.ScaleType = Enum.ScaleType.Slice
+	Background.SliceCenter = Rect.new(100,100,100,100)
+	Background.ImageColor3 = Color3.fromRGB(35,35,35)
+	Background.Parent = Toast
+
+	local Shadow = Instance.new("ImageLabel")
+	Shadow.Name = "Shadow"
+	Shadow.BackgroundTransparency = 1
+	Shadow.Image = DropShadowID
+	Shadow.ImageTransparency = DropShadowTransparency
+	Shadow.Size = UDim2.new(1, 0, 1, 0)
+	Shadow.Parent = Background
+
+	local IconImage = Instance.new("ImageLabel")
+	IconImage.Name = "Icon"
+	IconImage.BackgroundTransparency = 1
+	IconImage.Size = UDim2.new(0, 48, 0, 48)
+	IconImage.Position = UDim2.new(0, 10, 0.5, -24)
+	IconImage.Image = Icon
+	IconImage.Parent = Background
+
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.Name = "Title"
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Font = MainFont
+	TitleLabel.TextSize = 14
+	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	TitleLabel.Position = UDim2.new(0, 70, 0, 10)
+	TitleLabel.Size = UDim2.new(1, -80, 0, 20)
+	TitleLabel.Text = TitleText
+	TitleLabel.Parent = Background
+
+	local BodyLabel = Instance.new("TextLabel")
+	BodyLabel.Name = "Body"
+	BodyLabel.BackgroundTransparency = 1
+	BodyLabel.Font = MainFont
+	BodyLabel.TextSize = 12
+	BodyLabel.TextXAlignment = Enum.TextXAlignment.Left
+	BodyLabel.TextWrapped = true
+	BodyLabel.TextColor3 = Color3.fromRGB(210,210,210)
+	BodyLabel.Position = UDim2.new(0, 70, 0, 28)
+	BodyLabel.Size = UDim2.new(1, -80, 0, 32)
+	BodyLabel.Text = BodyText
+	BodyLabel.Parent = Background
+
+	-- Slide in
+	Toast.Position = UDim2.new(1, 320, 0, 0)
+	Tween(Toast, { Position = UDim2.new(0, 0, 0, 0) })
+
+	-- Auto remove
+	task.delay(Duration, function()
+		Tween(Toast, { Position = UDim2.new(1, 320, 0, 0) })
+		task.wait(TweenTime + 0.15)
+		Toast:Destroy()
+	end)
+end
+
+
 function UILibrary.Load(GUITitle)
 	local TargetedParent = RunService:IsStudio() and Player:WaitForChild("PlayerGui") or CoreGuiService
 
