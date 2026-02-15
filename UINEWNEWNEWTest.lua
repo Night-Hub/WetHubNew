@@ -896,4 +896,231 @@ function UILibrary.Load(GUITitle)
 	return TabLibrary
 end
 
+--// ========================
+--// NOTIFY (drop-in)
+--// Paste this right before: return UILibrary
+--// Usage: UILibrary.Notify("Title","Text",3)  -- duration in seconds
+--// ========================
+function UILibrary.Notify(Title, Text, Duration, LogoImage)
+	Title = tostring(Title or "Notification")
+	Text = tostring(Text or "")
+	Duration = tonumber(Duration) or 3
+	LogoImage = LogoImage or "rbxthumb://type=Asset&id=6845502547&w=150&h=150"
+
+	local Players = game:GetService("Players")
+	local CoreGui = game:GetService("CoreGui")
+	local RunService = game:GetService("RunService")
+	local TweenService = game:GetService("TweenService")
+
+	--// Find your ScreenGui created by UILibrary.Load without changing Load()
+	local function findLoadedGui()
+		local function scan(parent)
+			for _, g in ipairs(parent:GetChildren()) do
+				if g:IsA("ScreenGui") then
+					-- your library always creates ContainerFrame/MainFrame/TitleBar
+					local cf = g:FindFirstChild("ContainerFrame")
+					if cf and cf:FindFirstChild("MainFrame") then
+						local mf = cf.MainFrame
+						if mf:FindFirstChild("TitleBar") and mf:FindFirstChild("Display") and mf:FindFirstChild("MenuBar") then
+							return g
+						end
+					end
+				end
+			end
+			return nil
+		end
+
+		-- prefer CoreGui (executors) then PlayerGui (studio)
+		return scan(CoreGui) or scan(Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or Players.LocalPlayer:WaitForChild("PlayerGui"))
+	end
+
+	local Gui = findLoadedGui()
+	if not Gui then
+		warn("UILibrary.Notify: couldn't find loaded UI (call after UILibrary.Load).")
+		return
+	end
+
+	--// Ensure holder exists (created once)
+	local Holder = Gui:FindFirstChild("NotificationHolder")
+	if not Holder then
+		Holder = Instance.new("Frame")
+		Holder.Name = "NotificationHolder"
+		Holder.BackgroundTransparency = 1
+		Holder.Size = UDim2.new(0, 280, 1, 0)
+		Holder.Position = UDim2.new(1, -290, 0, 12) -- top-right margin
+		Holder.ZIndex = 9999
+		Holder.Parent = Gui
+
+		local List = Instance.new("UIListLayout")
+		List.SortOrder = Enum.SortOrder.LayoutOrder
+		List.Padding = UDim.new(0, 8)
+		List.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		List.VerticalAlignment = Enum.VerticalAlignment.Top
+		List.Parent = Holder
+	end
+
+	--// Toast root
+	local Toast = Instance.new("Frame")
+	Toast.Name = "Toast"
+	Toast.BackgroundTransparency = 1
+	Toast.Size = UDim2.new(0, 280, 0, 82)
+	Toast.ZIndex = 9999
+	Toast.Parent = Holder
+
+	--// Card (black)
+	local Card = Instance.new("Frame")
+	Card.Name = "Card"
+	Card.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	Card.BorderSizePixel = 0
+	Card.Size = UDim2.new(1, 0, 1, 0)
+	Card.ZIndex = 10000
+	Card.Parent = Toast
+
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 10)
+	Corner.Parent = Card
+
+	--// Rainbow border 2px (UIStroke)
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Thickness = 2
+	Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	Stroke.Parent = Card
+
+	--// Title bar (grey pill-ish)
+	local TitleBar = Instance.new("Frame")
+	TitleBar.BorderSizePixel = 0
+	TitleBar.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	TitleBar.Size = UDim2.new(1, -12, 0, 22)
+	TitleBar.Position = UDim2.new(0, 6, 0, 6)
+	TitleBar.ZIndex = 10001
+	TitleBar.Parent = Card
+
+	local TitleCorner = Instance.new("UICorner")
+	TitleCorner.CornerRadius = UDim.new(0, 12)
+	TitleCorner.Parent = TitleBar
+
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Size = UDim2.new(1, -10, 1, 0)
+	TitleLabel.Position = UDim2.new(0, 5, 0, 0)
+	TitleLabel.Font = MainFont
+	TitleLabel.TextSize = 14
+	TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TitleLabel.Text = Title
+	TitleLabel.ZIndex = 10002
+	TitleLabel.Parent = TitleBar
+
+	--// Logo
+	local Logo = Instance.new("ImageLabel")
+	Logo.BackgroundTransparency = 1
+	Logo.Size = UDim2.new(0, 42, 0, 42)
+	Logo.Position = UDim2.new(0, 10, 0, 32)
+	Logo.Image = LogoImage
+	Logo.ZIndex = 10002
+	Logo.Parent = Card
+
+	local LogoCorner = Instance.new("UICorner")
+	LogoCorner.CornerRadius = UDim.new(0, 8)
+	LogoCorner.Parent = Logo
+
+	--// Body text
+	local Body = Instance.new("TextLabel")
+	Body.BackgroundTransparency = 1
+	Body.Size = UDim2.new(1, -64, 0, 42)
+	Body.Position = UDim2.new(0, 58, 0, 32)
+	Body.Font = MainFont
+	Body.TextSize = 13
+	Body.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Body.TextXAlignment = Enum.TextXAlignment.Left
+	Body.TextYAlignment = Enum.TextYAlignment.Top
+	Body.TextWrapped = true
+	Body.Text = Text
+	Body.ZIndex = 10002
+	Body.Parent = Card
+
+	--// Skinny red progress bar (height 6)
+	local BarBack = Instance.new("Frame")
+	BarBack.BorderSizePixel = 0
+	BarBack.BackgroundColor3 = Color3.fromRGB(35, 0, 0)
+	BarBack.Size = UDim2.new(1, -12, 0, 6)
+	BarBack.Position = UDim2.new(0, 6, 1, -10)
+	BarBack.ZIndex = 10001
+	BarBack.Parent = Card
+
+	local BarBackCorner = Instance.new("UICorner")
+	BarBackCorner.CornerRadius = UDim.new(0, 6)
+	BarBackCorner.Parent = BarBack
+
+	local BarFill = Instance.new("Frame")
+	BarFill.BorderSizePixel = 0
+	BarFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	BarFill.Size = UDim2.new(1, 0, 1, 0)
+	BarFill.Position = UDim2.new(0, 0, 0, 0)
+	BarFill.ZIndex = 10002
+	BarFill.Parent = BarBack
+
+	local BarFillCorner = Instance.new("UICorner")
+	BarFillCorner.CornerRadius = UDim.new(0, 6)
+	BarFillCorner.Parent = BarFill
+
+	--// Animate in (slide + fade)
+	Card.BackgroundTransparency = 1
+	TitleBar.BackgroundTransparency = 1
+	Logo.ImageTransparency = 1
+	TitleLabel.TextTransparency = 1
+	Body.TextTransparency = 1
+	BarBack.BackgroundTransparency = 1
+	BarFill.BackgroundTransparency = 1
+
+	Toast.Size = UDim2.new(0, 280, 0, 0)
+	TweenService:Create(Toast, TweenInfo.new(0.12, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(0, 280, 0, 82)}):Play()
+
+	TweenService:Create(Card, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(TitleBar, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(Logo, TweenInfo.new(0.12), {ImageTransparency = 0}):Play()
+	TweenService:Create(TitleLabel, TweenInfo.new(0.12), {TextTransparency = 0}):Play()
+	TweenService:Create(Body, TweenInfo.new(0.12), {TextTransparency = 0}):Play()
+	TweenService:Create(BarBack, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(BarFill, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
+
+	--// Rainbow border loop + progress loop
+	local start = os.clock()
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		if not Toast or not Toast.Parent then
+			if conn then conn:Disconnect() end
+			return
+		end
+
+		local t = os.clock() - start
+		local hue = (t * 0.35) % 1
+		Stroke.Color = Color3.fromHSV(hue, 1, 1)
+	end)
+
+	--// Progress drains to zero over Duration
+	TweenService:Create(BarFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
+
+	--// Cleanup after Duration (+ small out anim)
+	task.delay(Duration, function()
+		if not Toast or not Toast.Parent then
+			if conn then conn:Disconnect() end
+			return
+		end
+
+		-- fade out
+		TweenService:Create(Card, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(TitleBar, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(Logo, TweenInfo.new(0.12), {ImageTransparency = 1}):Play()
+		TweenService:Create(TitleLabel, TweenInfo.new(0.12), {TextTransparency = 1}):Play()
+		TweenService:Create(Body, TweenInfo.new(0.12), {TextTransparency = 1}):Play()
+		TweenService:Create(BarBack, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(BarFill, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
+
+		task.wait(0.14)
+		if conn then conn:Disconnect() end
+		Toast:Destroy()
+	end)
+end
+
+
 return UILibrary
