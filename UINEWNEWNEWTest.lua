@@ -172,8 +172,8 @@ end
 local UILibrary = {}
 
 --// ========================
---// CUSTOM NOTIFICATION (WetHub)
---// Looks like Roblox toast, but fully custom
+--// CUSTOM NOTIFICATION (Rectangular)
+--// Bottom-right, slide+fade in/out, left icon block
 --// ========================
 function UILibrary.CallNotification(TitleText, BodyText, Duration, Icon)
 	TitleText = tostring(TitleText or "WetHub")
@@ -195,13 +195,13 @@ function UILibrary.CallNotification(TitleText, BodyText, Duration, Icon)
 		local Container = Instance.new("Frame")
 		Container.Name = "Container"
 		Container.AnchorPoint = Vector2.new(1, 1)
-		Container.Position = UDim2.new(1, -10, 1, -10)
-		Container.Size = UDim2.new(0, 300, 1, -20)
+		Container.Position = UDim2.new(1, -14, 1, -14) -- bottom-right
+		Container.Size = UDim2.new(0, 340, 1, -28)
 		Container.BackgroundTransparency = 1
 		Container.Parent = Holder
 
 		local Layout = Instance.new("UIListLayout")
-		Layout.Padding = UDim.new(0, 6)
+		Layout.Padding = UDim.new(0, 8)
 		Layout.SortOrder = Enum.SortOrder.LayoutOrder
 		Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 		Layout.Parent = Container
@@ -209,39 +209,76 @@ function UILibrary.CallNotification(TitleText, BodyText, Duration, Icon)
 
 	local Container = Holder.Container
 
-	--// Toast
+	--// Toast root (we move this for slide)
 	local Toast = Instance.new("Frame")
 	Toast.Name = "Toast"
-	Toast.Size = UDim2.new(1, 0, 0, 70)
+	Toast.Size = UDim2.new(1, 0, 0, 72)
 	Toast.BackgroundTransparency = 1
-	Toast.ClipsDescendants = true
+	Toast.ClipsDescendants = false
 	Toast.Parent = Container
 
-	local Background = Instance.new("ImageLabel")
+	--// Rect background (mild rounding)
+	local Background = Instance.new("Frame")
 	Background.Name = "Background"
 	Background.Size = UDim2.new(1, 0, 1, 0)
-	Background.BackgroundTransparency = 1
-	Background.Image = "rbxassetid://3570695787"
-	Background.ScaleType = Enum.ScaleType.Slice
-	Background.SliceCenter = Rect.new(100,100,100,100)
-	Background.ImageColor3 = Color3.fromRGB(35,35,35)
+	Background.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+	Background.BackgroundTransparency = 0 -- we animate this
+	Background.BorderSizePixel = 0
 	Background.Parent = Toast
 
+	local BgCorner = Instance.new("UICorner")
+	BgCorner.CornerRadius = UDim.new(0, 10) -- rectangular look (not super pill)
+	BgCorner.Parent = Background
+
+	--// Drop shadow (your existing asset)
 	local Shadow = Instance.new("ImageLabel")
 	Shadow.Name = "Shadow"
 	Shadow.BackgroundTransparency = 1
 	Shadow.Image = DropShadowID
-	Shadow.ImageTransparency = DropShadowTransparency
-	Shadow.Size = UDim2.new(1, 0, 1, 0)
-	Shadow.Parent = Background
+	Shadow.ImageTransparency = 1 -- start hidden (we fade it)
+	Shadow.Size = UDim2.new(1, 20, 1, 20)
+	Shadow.Position = UDim2.new(0, -10, 0, -10)
+	Shadow.ZIndex = Background.ZIndex - 1
+	Shadow.Parent = Toast
+
+	--// Left icon block
+	local IconBlock = Instance.new("Frame")
+	IconBlock.Name = "IconBlock"
+	IconBlock.BorderSizePixel = 0
+	IconBlock.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	IconBlock.BackgroundTransparency = 0
+	IconBlock.Size = UDim2.new(0, 64, 1, 0)
+	IconBlock.Position = UDim2.new(0, 0, 0, 0)
+	IconBlock.Parent = Background
+
+	local IconCorner = Instance.new("UICorner")
+	IconCorner.CornerRadius = UDim.new(0, 10)
+	IconCorner.Parent = IconBlock
+
+	-- Make left block only round on left-ish by hiding the right rounding with a filler
+	local IconRightMask = Instance.new("Frame")
+	IconRightMask.BorderSizePixel = 0
+	IconRightMask.BackgroundColor3 = IconBlock.BackgroundColor3
+	IconRightMask.Size = UDim2.new(0, 10, 1, 0)
+	IconRightMask.Position = UDim2.new(1, -10, 0, 0)
+	IconRightMask.Parent = IconBlock
 
 	local IconImage = Instance.new("ImageLabel")
 	IconImage.Name = "Icon"
 	IconImage.BackgroundTransparency = 1
-	IconImage.Size = UDim2.new(0, 48, 0, 48)
-	IconImage.Position = UDim2.new(0, 10, 0.5, -24)
+	IconImage.Size = UDim2.new(0, 34, 0, 34)
+	IconImage.Position = UDim2.new(0.5, -17, 0.5, -17)
 	IconImage.Image = Icon
-	IconImage.Parent = Background
+	IconImage.ImageTransparency = 1 -- fade in
+	IconImage.Parent = IconBlock
+
+	--// Text area
+	local TextArea = Instance.new("Frame")
+	TextArea.Name = "TextArea"
+	TextArea.BackgroundTransparency = 1
+	TextArea.Position = UDim2.new(0, 74, 0, 10)
+	TextArea.Size = UDim2.new(1, -84, 1, -20)
+	TextArea.Parent = Background
 
 	local TitleLabel = Instance.new("TextLabel")
 	TitleLabel.Name = "Title"
@@ -249,11 +286,12 @@ function UILibrary.CallNotification(TitleText, BodyText, Duration, Icon)
 	TitleLabel.Font = MainFont
 	TitleLabel.TextSize = 14
 	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
-	TitleLabel.Position = UDim2.new(0, 70, 0, 10)
-	TitleLabel.Size = UDim2.new(1, -80, 0, 20)
+	TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TitleLabel.TextTransparency = 1 -- fade in
+	TitleLabel.Size = UDim2.new(1, 0, 0, 18)
+	TitleLabel.Position = UDim2.new(0, 0, 0, 0)
 	TitleLabel.Text = TitleText
-	TitleLabel.Parent = Background
+	TitleLabel.Parent = TextArea
 
 	local BodyLabel = Instance.new("TextLabel")
 	BodyLabel.Name = "Body"
@@ -261,22 +299,40 @@ function UILibrary.CallNotification(TitleText, BodyText, Duration, Icon)
 	BodyLabel.Font = MainFont
 	BodyLabel.TextSize = 12
 	BodyLabel.TextXAlignment = Enum.TextXAlignment.Left
+	BodyLabel.TextYAlignment = Enum.TextYAlignment.Top
 	BodyLabel.TextWrapped = true
-	BodyLabel.TextColor3 = Color3.fromRGB(210,210,210)
-	BodyLabel.Position = UDim2.new(0, 70, 0, 28)
-	BodyLabel.Size = UDim2.new(1, -80, 0, 32)
+	BodyLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	BodyLabel.TextTransparency = 1 -- fade in
+	BodyLabel.Size = UDim2.new(1, 0, 1, -20)
+	BodyLabel.Position = UDim2.new(0, 0, 0, 20)
 	BodyLabel.Text = BodyText
-	BodyLabel.Parent = Background
+	BodyLabel.Parent = TextArea
 
-	-- Slide in
-	Toast.Position = UDim2.new(1, 320, 0, 0)
+	--// Slide in/out uses Toast.Position (so layout still stacks)
+	Toast.Position = UDim2.new(0, 30, 0, 0) -- slight offset start
+	Toast.AnchorPoint = Vector2.new(0, 0)
+
+	-- start off to the right (relative)
+	Toast.Position = UDim2.new(0, 360, 0, 0)
+
+	-- Fade in (manual tween props)
 	Tween(Toast, { Position = UDim2.new(0, 0, 0, 0) })
+	Tween(Shadow, { ImageTransparency = DropShadowTransparency })
+	Tween(IconImage, { ImageTransparency = 0 })
+	Tween(TitleLabel, { TextTransparency = 0 })
+	Tween(BodyLabel, { TextTransparency = 0 })
 
-	-- Auto remove
+	-- Auto remove (slide right + fade out)
 	task.delay(Duration, function()
-		Tween(Toast, { Position = UDim2.new(1, 320, 0, 0) })
-		task.wait(TweenTime + 0.15)
-		Toast:Destroy()
+		Tween(Toast, { Position = UDim2.new(0, 360, 0, 0) })
+		Tween(Shadow, { ImageTransparency = 1 })
+		Tween(IconImage, { ImageTransparency = 1 })
+		Tween(TitleLabel, { TextTransparency = 1 })
+		Tween(BodyLabel, { TextTransparency = 1 })
+		task.wait(TweenTime + 0.2)
+		if Toast then
+			Toast:Destroy()
+		end
 	end)
 end
 
