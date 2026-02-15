@@ -233,17 +233,31 @@ function UILibrary.Load(GUITitle)
 
 	Level += 1
 
-	local MinimiseButton, TitleButton
-	local MinimiseToggle = true
+local MinimiseButton, TitleButton
+local MinimiseToggle = true
 
-	MinimiseButton = TitleIcon(true)
-	MinimiseButton.Name = "Minimise"
-	MinimiseButton.Parent = TitleBar
+--// LOGO (left side of title bar)
+local TitleLogo = Instance.new("ImageLabel")
+TitleLogo.Name = "TitleLogo"
+TitleLogo.BackgroundTransparency = 1
+TitleLogo.Image = "rbxassetid://139644262377528"
+TitleLogo.Size = UDim2.new(0, 16, 0, 16)
+TitleLogo.Position = UDim2.new(0, 4, 0, 2)
+TitleLogo.ZIndex = Level
+TitleLogo.Parent = TitleBar
 
-	TitleButton = TextButton(GUITitle, 14)
-	TitleButton.Name = "TitleButton"
-	TitleButton.Size = UDim2.new(1, -20, 1, 0)
-	TitleButton.Parent = TitleBar
+--// minimise button (right side)
+MinimiseButton = TitleIcon(true)
+MinimiseButton.Name = "Minimise"
+MinimiseButton.Parent = TitleBar
+
+--// title text (shifted right to make room for logo)
+TitleButton = TextButton(GUITitle, 14)
+TitleButton.Name = "TitleButton"
+TitleButton.Position = UDim2.new(0, 24, 0, 0)
+TitleButton.Size = UDim2.new(1, -44, 1, 0) -- left logo space + right minimise space
+TitleButton.Parent = TitleBar
+
 
 	MinimiseButton.MouseButton1Down:Connect(function()
 		MinimiseToggle = not MinimiseToggle
@@ -906,7 +920,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Title = tostring(Title or "Notification")
 	Text = tostring(Text or "")
 	Duration = tonumber(Duration) or 3
-	LogoImage = LogoImage or "rbxthumb://type=Asset&id=6845502547&w=150&h=150"
+	LogoImage = LogoImage or "rbxassetid://139644262377528"
 
 	--// services
 	local Players = game:GetService("Players")
