@@ -240,7 +240,7 @@ local MinimiseToggle = true
 local TitleLogo = Instance.new("ImageLabel")
 TitleLogo.Name = "TitleLogo"
 TitleLogo.BackgroundTransparency = 1
-TitleLogo.Image = "rbxassetid://6845502547"
+TitleLogo.Image = "rbxthumb://type=Asset&id=6845502547&w=32&h=32"
 TitleLogo.Size = UDim2.new(0, 32, 0, 32)
 TitleLogo.Position = UDim2.new(0, 2, 0, -6)
 TitleLogo.ZIndex = Level
