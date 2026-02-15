@@ -242,7 +242,7 @@ TitleLogo.Name = "TitleLogo"
 TitleLogo.BackgroundTransparency = 1
 TitleLogo.Image = "rbxassetid://139644262377528"
 TitleLogo.Size = UDim2.new(0, 32, 0, 32)
-TitleLogo.Position = UDim2.new(0, 8, 0, -8)
+TitleLogo.Position = UDim2.new(0, 2, 0, -6)
 TitleLogo.ZIndex = Level
 TitleLogo.Parent = TitleBar
 
