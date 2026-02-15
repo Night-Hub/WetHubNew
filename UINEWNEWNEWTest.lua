@@ -218,60 +218,54 @@ function UILibrary.Load(GUITitle)
 	MenuBar.Parent = MainFrame
 
 --// ========================
---// LEFT SIDEBAR PROFILE BAR (bottom)
+--// LEFT SIDEBAR PROFILE BAR (smaller + tab colour)
 --// ========================
 
-local ProfileBarHeight = 48
+local ProfileBarHeight = 40
 local ProfileBarPadding = 5
 
--- shrink the MenuBar so there's space for the profile bar at the bottom
+-- shrink MenuBar to make space
 MenuBar.Size = UDim2.new(0, 100, 0, 235 - ProfileBarHeight - ProfileBarPadding)
 
--- profile bar container (fixed at bottom-left of MainFrame)
 local ProfileBar = RoundBox(5)
 ProfileBar.Name = "ProfileBar"
-ProfileBar.ImageColor3 = Color3.fromRGB(20, 20, 20) -- matches sidebar tone
+ProfileBar.ImageColor3 = Color3.fromRGB(40, 40, 40) -- SAME as tab buttons
 ProfileBar.Size = UDim2.new(0, 100, 0, ProfileBarHeight)
 ProfileBar.Position = UDim2.new(0, 5, 1, -(ProfileBarHeight + ProfileBarPadding))
 ProfileBar.ZIndex = Level + 1
 ProfileBar.Parent = MainFrame
 ProfileBar.ClipsDescendants = true
 
--- avatar headshot
+-- avatar (slightly smaller)
 local Avatar = Instance.new("ImageLabel")
-Avatar.Name = "Avatar"
 Avatar.BackgroundTransparency = 1
-Avatar.Size = UDim2.new(0, 34, 0, 34)
-Avatar.Position = UDim2.new(0, 6, 0.5, -17)
+Avatar.Size = UDim2.new(0, 28, 0, 28)
+Avatar.Position = UDim2.new(0, 6, 0.5, -14)
 Avatar.ZIndex = ProfileBar.ZIndex + 1
 Avatar.Parent = ProfileBar
-
--- use headshot thumbnail (reliable)
 Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
 
 local AvatarCorner = Instance.new("UICorner")
-AvatarCorner.CornerRadius = UDim.new(1, 0) -- circle
+AvatarCorner.CornerRadius = UDim.new(1, 0)
 AvatarCorner.Parent = Avatar
 
--- welcome text
+-- welcome text (tighter spacing)
 local Welcome = Instance.new("TextLabel")
-Welcome.Name = "Welcome"
 Welcome.BackgroundTransparency = 1
 Welcome.TextXAlignment = Enum.TextXAlignment.Left
 Welcome.TextYAlignment = Enum.TextYAlignment.Center
 Welcome.Font = MainFont
 Welcome.TextSize = 11
 Welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
-Welcome.TextTransparency = 0.1
+Welcome.TextTransparency = 0.15
 Welcome.TextWrapped = true
-Welcome.Size = UDim2.new(1, -46, 1, 0)
-Welcome.Position = UDim2.new(0, 44, 0, 0)
+Welcome.Size = UDim2.new(1, -40, 1, 0)
+Welcome.Position = UDim2.new(0, 36, 0, 0)
 Welcome.ZIndex = ProfileBar.ZIndex + 1
 Welcome.Parent = ProfileBar
 
--- DisplayName looks nicer; fallback to Name
 local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
-Welcome.Text = "Welcome " .. shownName
+Welcome.Text = "Welcome\n" .. shownName
 
 
 	DisplayFrame = RoundBox(5)
