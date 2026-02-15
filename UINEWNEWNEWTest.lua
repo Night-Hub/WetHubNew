@@ -240,12 +240,17 @@ local MinimiseToggle = true
 local TitleLogo = Instance.new("ImageLabel")
 TitleLogo.Name = "TitleLogo"
 TitleLogo.BackgroundTransparency = 1
-TitleLogo.Image = "rbxassetid://139644262377528"
+TitleLogo.Image = "rbxassetid://6845502547"
 TitleLogo.Size = UDim2.new(0, 32, 0, 32)
 TitleLogo.Position = UDim2.new(0, 2, 0, -6)
 TitleLogo.ZIndex = Level
 TitleLogo.Parent = TitleBar
 
+-- round it
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(1, 0) -- full circle
+Corner.Parent = TitleLogo
+	
 --// minimise button (right side)
 MinimiseButton = TitleIcon(true)
 MinimiseButton.Name = "Minimise"
