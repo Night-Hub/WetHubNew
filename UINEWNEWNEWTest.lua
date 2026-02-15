@@ -1,8 +1,8 @@
 --// ========================
---// WetHub UI Library (Fixed + AddValue)
+--// WetHub UI Library (Fixed + ValueButton)
 --// - Fixes: AddColourPicker calling AddSlider before it exists (order)
 --// - Fixes: SearchIcon local shadowing the SearchIcon() function
---// - Adds: AddValue() (live status indicator that can also act like a button)
+--// - Adds: AddValueButton() -> normal button row + right red/green square
 --// ========================
 
 local Player = game.Players.LocalPlayer
@@ -594,7 +594,6 @@ function UILibrary.Load(GUITitle)
 				blue = Color3.fromRGB(0, 0, 255),
 			}
 
-			-- support: "purple", {r,g,b}, Color3
 			if typeof(DefaultColour) == "table" then
 				DefaultColour = Color3.fromRGB(DefaultColour[1] or 255, DefaultColour[2] or 255, DefaultColour[3] or 255)
 			elseif typeof(DefaultColour) == "string" then
@@ -713,154 +712,127 @@ function UILibrary.Load(GUITitle)
 		end
 
 		--// ========================
-		--// VALUE (STATUS INDICATOR) + OPTIONAL BUTTON MODE
+		--// VALUE BUTTON (NORMAL BUTTON LOOK + RIGHT RED/GREEN SQUARE)
 		--// ========================
-		-- Usage:
-		--   local v = Page.AddValue("Cloak", false, { button = false, refresh = 0.25 }, function()
-		--       return CloakExists
-		--   end)
+		-- Create a normal button row with a right indicator square:
+		--   Red when false, Green when true.
 		--
-		--   local v2 = Page.AddValue("Crown", false, { button = true, onClick = function() print("clicked") end }, function()
-		--       return CrownExists
-		--   end)
+		-- Supports:
+		--   1) Polling getter:
+		--      Page.AddValueButton("Cloak", false, {refresh=0.25, button=true}, function(current) print("click", current) end, function() return CloakExists end)
 		--
-		--   v:Set(true/false) -- manual update if you want
-		function PageLibrary.AddValue(Text, Default, Options, GetterOrCallback)
-			-- allow calling without Text (backwards-ish)
-			if typeof(Text) ~= "string" then
-				GetterOrCallback = Options
-				Options = Default
-				Default = Text
-				Text = "Value"
-			end
-
-			local ThisValue = (Default == true)
-
+		--   2) Manual set:
+		--      local h = Page.AddValueButton("Cloak", false)
+		--      h:Set(true)
+		function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
 			Options = Options or {}
-			local IsButtonMode = (Options.button == true)
+
+			local ButtonEnabled = (Options.button == nil) and true or (Options.button == true)
 			local RefreshRate = tonumber(Options.refresh) or 0.25
-			local OnClick = Options.onClick
 
-			local ValueContainer = Frame()
-			ValueContainer.Name = Text .. "VALUE"
-			ValueContainer.Size = UDim2.new(1, 0, 0, 20)
-			ValueContainer.BackgroundTransparency = 1
-			ValueContainer.Parent = DisplayPage
+			local ValueBool = (Default == true)
 
-			local LeftSide, RightSide, EffectFrame, RightTick = RoundBox(5), RoundBox(5), Frame(), TickIcon()
-			local FlatLeft, FlatRight = Frame(), Frame()
+			local ButtonContainer = Frame()
+			ButtonContainer.Name = Text .. "VALUEBUTTON"
+			ButtonContainer.Size = UDim2.new(1, 0, 0, 20)
+			ButtonContainer.BackgroundTransparency = 1
+			ButtonContainer.Parent = DisplayPage
 
-			LeftSide.Size = UDim2.new(1, -22, 1, 0)
-			LeftSide.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			LeftSide.Parent = ValueContainer
+			local ButtonForeground = RoundBox(5)
+			ButtonForeground.Name = "ButtonForeground"
+			ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
+			ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			ButtonForeground.Parent = ButtonContainer
 
-			RightSide.Position = UDim2.new(1, -20, 0, 0)
-			RightSide.Size = UDim2.new(0, 20, 1, 0)
-			RightSide.ImageColor3 = Color3.fromRGB(45, 45, 45)
-			RightSide.Parent = ValueContainer
+			local HiddenButton = TextButton(Text, 12)
+			HiddenButton.Name = "ValueButton"
+			HiddenButton.Parent = ButtonForeground
 
-			FlatLeft.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-			FlatLeft.Size = UDim2.new(0, 5, 1, 0)
-			FlatLeft.Position = UDim2.new(1, -5, 0, 0)
-			FlatLeft.Parent = LeftSide
+			-- right indicator container (same width as your toggle right side)
+			local IndicatorHolder = Frame()
+			IndicatorHolder.Name = "IndicatorHolder"
+			IndicatorHolder.BackgroundTransparency = 1
+			IndicatorHolder.Size = UDim2.new(0, 20, 0, 20)
+			IndicatorHolder.Position = UDim2.new(1, -20, 0, 0)
+			IndicatorHolder.ZIndex = Level + 2
+			IndicatorHolder.Parent = ButtonForeground
 
-			FlatRight.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-			FlatRight.Size = UDim2.new(0, 5, 1, 0)
-			FlatRight.Parent = RightSide
+			-- square itself
+			local Indicator = Frame()
+			Indicator.Name = "Indicator"
+			Indicator.BorderSizePixel = 0
+			Indicator.Size = UDim2.new(0, 12, 0, 12)
+			Indicator.Position = UDim2.new(0.5, -6, 0.5, -6)
+			Indicator.ZIndex = Level + 3
+			Indicator.Parent = IndicatorHolder
 
-			EffectFrame.BackgroundColor3 = ThisValue and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160)
-			EffectFrame.Position = UDim2.new(1, -22, 0.2, 0)
-			EffectFrame.Size = UDim2.new(0, 2, 0.6, 0)
-			EffectFrame.Parent = ValueContainer
+			local IndicatorCorner = Instance.new("UICorner")
+			IndicatorCorner.CornerRadius = UDim.new(0, 3)
+			IndicatorCorner.Parent = Indicator
 
-			RightTick.ImageTransparency = ThisValue and 0 or 1
-			RightTick.Parent = RightSide
-
-			local ValueLabel = TextLabel(Text, 12)
-			ValueLabel.Size = UDim2.new(1, 0, 1, 0)
-			ValueLabel.Parent = LeftSide
-
-			local ClickOverlay
-			if IsButtonMode then
-				ClickOverlay = TextButton("", 12)
-				ClickOverlay.Name = "ValueClickOverlay"
-				ClickOverlay.Text = ""
-				ClickOverlay.BackgroundTransparency = 1
-				ClickOverlay.Size = UDim2.new(1, 0, 1, 0)
-				ClickOverlay.Parent = ValueContainer
-
-				ClickOverlay.MouseButton1Down:Connect(function()
-					-- button press feedback
-					Tween(LeftSide, { ImageColor3 = Color3.fromRGB(45, 45, 45) })
-					Tween(ValueLabel, { TextTransparency = 0.5 })
-
-					-- run user click
-					if OnClick then
-						OnClick(ThisValue)
-					end
-
-					task.wait(TweenTime)
-					Tween(LeftSide, { ImageColor3 = Color3.fromRGB(35, 35, 35) })
-					Tween(ValueLabel, { TextTransparency = 0 })
-				end)
-			end
+			local GREEN = Color3.fromRGB(0, 255, 109)
+			local RED = Color3.fromRGB(255, 160, 160)
 
 			local function Apply(NewBool)
 				NewBool = (NewBool == true)
-				if NewBool == ThisValue then
+				if NewBool == ValueBool then
 					return
 				end
-				ThisValue = NewBool
-				Tween(EffectFrame, { BackgroundColor3 = ThisValue and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160) })
-				Tween(RightTick, { ImageTransparency = ThisValue and 0 or 1 })
+				ValueBool = NewBool
+				Tween(Indicator, { BackgroundColor3 = ValueBool and GREEN or RED })
 			end
 
-			-- live getter support (preferred): callback returns boolean
-			-- also tolerates old "function(Value) Value = something end" by just calling it; if it returns nil we ignore.
-			local GetterConn
-			if typeof(GetterOrCallback) == "function" then
-				local lastPoll = 0
+			Indicator.BackgroundColor3 = ValueBool and GREEN or RED
+
+			HiddenButton.MouseButton1Down:Connect(function()
+				if ButtonEnabled and OnClick then
+					OnClick(ValueBool)
+				end
+
+				-- normal button press feedback
+				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(45, 45, 45) })
+				Tween(HiddenButton, { TextTransparency = 0.5 })
+				task.wait(TweenTime)
+				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(35, 35, 35) })
+				Tween(HiddenButton, { TextTransparency = 0 })
+			end)
+
+			local GetterConn = nil
+			if typeof(Getter) == "function" then
+				local acc = 0
 				GetterConn = RunService.Heartbeat:Connect(function(dt)
-					lastPoll += dt
-					if lastPoll < RefreshRate then
+					acc += dt
+					if acc < RefreshRate then
 						return
 					end
-					lastPoll = 0
+					acc = 0
 
-					local ok, result = pcall(function()
-						-- if they defined params, it still works; we pass current
-						return GetterOrCallback(ThisValue)
-					end)
-
-					if ok and result ~= nil then
-						Apply(result)
+					local ok, res = pcall(Getter)
+					if ok and res ~= nil then
+						Apply(res)
 					end
 				end)
 			end
 
-			-- return handle so you can set manually too
 			local Handle = {}
 
-			function Handle.Set(_, NewBool)
+			function Handle:Set(NewBool)
 				Apply(NewBool)
 			end
 
-			function Handle.Get(_)
-				return ThisValue
+			function Handle:Get()
+				return ValueBool
 			end
 
-			function Handle.Destroy(_)
+			function Handle:Destroy()
 				if GetterConn then
 					GetterConn:Disconnect()
 					GetterConn = nil
 				end
-				if ValueContainer then
-					ValueContainer:Destroy()
+				if ButtonContainer then
+					ButtonContainer:Destroy()
 				end
 			end
-
-			-- apply initial
-			Apply(ThisValue)
 
 			return Handle
 		end
