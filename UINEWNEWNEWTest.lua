@@ -1109,40 +1109,27 @@ TweenService:Create(
 	--// Progress drains to zero over Duration
 	TweenService:Create(BarFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
 
-task.delay(Duration, function()
-	if not Toast or not Toast.Parent then
-		if conn then conn:Disconnect() end
-		return
-	end
+	--// slide offscreen + cleanup
+	task.delay(Duration, function()
+		if not Toast or not Toast.Parent then
+			if conn then conn:Disconnect() end
+			return
+		end
 
-	-- slide offscreen right
-	local tweenOut = TweenService:Create(
-		Toast,
-		TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
-		{Position = UDim2.new(1, 300, 0, 0)}
-	)
+		local tweenOut = TweenService:Create(
+			Toast,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+			{Position = UDim2.new(1, 300, 0, 0)}
+		)
 
-	tweenOut:Play()
-	tweenOut.Completed:Wait()
+		tweenOut:Play()
+		tweenOut.Completed:Wait()
 
-	if conn then conn:Disconnect() end
-	Toast:Destroy()
-end)
-
-		-- fade out
-		TweenService:Create(Card, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
-		TweenService:Create(TitleBar, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
-		TweenService:Create(Logo, TweenInfo.new(0.12), {ImageTransparency = 1}):Play()
-		TweenService:Create(TitleLabel, TweenInfo.new(0.12), {TextTransparency = 1}):Play()
-		TweenService:Create(Body, TweenInfo.new(0.12), {TextTransparency = 1}):Play()
-		TweenService:Create(BarBack, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
-		TweenService:Create(BarFill, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
-
-		task.wait(0.14)
 		if conn then conn:Disconnect() end
 		Toast:Destroy()
 	end)
 end
+
 
 
 return UILibrary
