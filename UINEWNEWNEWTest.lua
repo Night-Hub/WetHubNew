@@ -223,7 +223,6 @@ function UILibrary.Load(GUITitle)
 	DisplayFrame.Size = UDim2.new(1, -115, 0, 235)
 	DisplayFrame.Position = UDim2.new(0, 110, 0, 30)
 	DisplayFrame.Parent = MainFrame
-	TitleBar.ClipsDescendants = false
 
 	TitleBar = RoundBox(5)
 	TitleBar.Name = "TitleBar"
@@ -245,12 +244,11 @@ TitleLogo.BackgroundTransparency = 1
 TitleLogo.Image = "rbxassetid://6845502547"
 TitleLogo.Size = UDim2.new(0, 32, 0, 32)
 TitleLogo.Position = UDim2.new(0, 2, 0, -6)
-TitleLogo.ZIndex = Level
 TitleLogo.ZIndex = TitleBar.ZIndex + 1
+TitleLogo.Parent = TitleBar
 
--- round it
 local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(1, 0) -- full circle
+Corner.CornerRadius = UDim.new(1, 0)
 Corner.Parent = TitleLogo
 	
 --// minimise button (right side)
