@@ -299,7 +299,7 @@ TitleLogo.ZIndex = TitleBar.ZIndex + 1
 TitleLogo.Parent = TitleBar
 
 local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(1, 0)
+Corner.CornerRadius = UDim.new(0, 2)
 Corner.Parent = TitleLogo
 	
 --// minimise button (right side)
