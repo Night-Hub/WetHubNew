@@ -265,7 +265,7 @@ Welcome.ZIndex = ProfileBar.ZIndex + 1
 Welcome.Parent = ProfileBar
 
 local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
-Welcome.Text = "Welcome\n" .. shownName
+Welcome.Text = "Welcome,\n" .. shownName .. "!"
 
 
 	DisplayFrame = RoundBox(5)
