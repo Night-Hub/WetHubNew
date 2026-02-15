@@ -287,20 +287,6 @@ Welcome.Text = "Welcome,\n" .. shownName .. "!"
 
 local MinimiseButton, TitleButton
 local MinimiseToggle = true
-
---// LOGO (left side of title bar)
-local TitleLogo = Instance.new("ImageLabel")
-TitleLogo.Name = "TitleLogo"
-TitleLogo.BackgroundTransparency = 1
-TitleLogo.Image = "rbxassetid://123346570049757"
-TitleLogo.Size = UDim2.new(0, 32, 0, 32)
-TitleLogo.Position = UDim2.new(0, 2, 0, -6)
-TitleLogo.ZIndex = TitleBar.ZIndex + 1
-TitleLogo.Parent = TitleBar
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 2)
-Corner.Parent = TitleLogo
 	
 --// minimise button (right side)
 MinimiseButton = TitleIcon(true)
