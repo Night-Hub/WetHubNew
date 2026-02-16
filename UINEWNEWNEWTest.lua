@@ -890,7 +890,8 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 		Toast:Destroy()
 	end)
 end
-
+local version = "1.0"
+print("Update: "..version)
 end
 
 return UILibrary --GYAAAAAAAAAAAAAAAAAAAAAAAAAAT
