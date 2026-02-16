@@ -891,4 +891,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	end)
 end
 
+end
+
 return UILibrary
