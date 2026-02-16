@@ -1,15 +1,13 @@
 --// ========================
---// WetHub UI Library (Config-Safe)
---// - Adds config registry + Save/Load/List
---// - Missing keys in a loaded config are auto-added:
---//     Toggle -> false
---//     Other -> control default (__Default) if available, else false
---// - Includes: AddToggle, AddSlider, AddDropdown, AddColourPicker, AddValueButton, Notify
---// - Includes: Left sidebar profile bar (avatar + Welcome)
+--// WetHub UI Library (Fixed + ValueButton + CONFIG SYSTEM)
+--// - Adds: Config registry + Save/Load via writefile/readfile (JSON)
+--// - Missing keys auto-add (toggles -> false, others -> default)
+--// - Returns handles for Toggle/Slider/Dropdown/ColourPicker/ValueButton
 --// ========================
 
---// services + locals
-local Players = game:GetService("Players")
+local Player = game.Players.LocalPlayer
+local Mouse = Player:GetMouse()
+
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGuiService = game:GetService("CoreGui")
@@ -17,17 +15,11 @@ local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
 local HttpService = game:GetService("HttpService")
 
-local Player = Players.LocalPlayer
-local Mouse = Player:GetMouse()
-
---// ui timing
 local TweenTime = 0.1
 local Level = 1
 
 local GlobalTweenInfo = TweenInfo.new(TweenTime)
-local AlteredTweenInfo = TweenInfo.new(TweenTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
---// assets
 local DropShadowID = "rbxassetid://297774371"
 local DropShadowTransparency = 0.3
 
@@ -37,28 +29,20 @@ local IconLibraryID2 = "rbxassetid://3926307971"
 local MainFont = Enum.Font.Gotham
 
 --// ========================
---// LIB TABLE
+--// CONFIG REGISTRY
 --// ========================
 local UILibrary = {}
-
---// config registry (key -> handle {Get, Set, __Type, __Default})
 UILibrary.__Registry = {}
+UILibrary.__ConfigFolder = "WetHubConfigs"
+UILibrary.__ConfigExt = ".json"
+UILibrary.__ConfigVersion = 1
 
---// config meta
-UILibrary.__Meta = {
-	Version = 1,
-	Folder = "WetHubConfigs",
-}
-
---// ========================
---// CONFIG UTILS
---// ========================
 local function _sanitizeKey(s)
 	s = tostring(s or "")
 	s = s:gsub("[%c\r\n\t]", " ")
 	s = s:gsub("%s+", " ")
-	s = s:gsub("[^%w%s%-%_%.%[%]%(%)%#%&]", "")
-	s = s:sub(1, 120)
+	s = s:gsub("[^%w%s%-%_%.%[%]%(%)%#%&:]", "")
+	s = s:sub(1, 140)
 	if s == "" then s = "Unnamed" end
 	return s
 end
@@ -74,12 +58,12 @@ end
 local function _ensureFolder()
 	if typeof(makefolder) == "function" then
 		if typeof(isfolder) == "function" then
-			if not isfolder(UILibrary.__Meta.Folder) then
-				makefolder(UILibrary.__Meta.Folder)
+			if not isfolder(UILibrary.__ConfigFolder) then
+				makefolder(UILibrary.__ConfigFolder)
 			end
 		else
 			pcall(function()
-				makefolder(UILibrary.__Meta.Folder)
+				makefolder(UILibrary.__ConfigFolder)
 			end)
 		end
 	end
@@ -88,15 +72,14 @@ end
 local function _cfgPath(name)
 	name = _sanitizeKey(name)
 	if name == "" then name = "default" end
-	return UILibrary.__Meta.Folder .. "/" .. name .. ".json"
+	return UILibrary.__ConfigFolder .. "/" .. name .. UILibrary.__ConfigExt
 end
 
---// export current UI values
-function UILibrary.GetConfig()
+function UILibrary.GetConfigTable()
 	local out = {
-		Version = UILibrary.__Meta.Version,
+		Version = UILibrary.__ConfigVersion,
 		SavedAt = os.time(),
-		Values = {},
+		Values = {}
 	}
 
 	for key, handle in pairs(UILibrary.__Registry) do
@@ -113,10 +96,8 @@ function UILibrary.GetConfig()
 	return out
 end
 
---// apply config values onto handles
-function UILibrary.ApplyConfig(cfg, fireCallbacks)
+function UILibrary.ApplyConfigTable(cfg, fireCallbacks)
 	fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-
 	if typeof(cfg) ~= "table" or typeof(cfg.Values) ~= "table" then
 		return false
 	end
@@ -133,24 +114,253 @@ function UILibrary.ApplyConfig(cfg, fireCallbacks)
 	return true
 end
 
---// save config to disk
-function UILibrary.SaveConfig(name)
+function UILibrary.WriteConfig(name)
 	if typeof(writefile) ~= "function" then
-		warn("UILibrary.SaveConfig: writefile() not available.")
+		warn("UILibrary.WriteConfig: writefile() not available in this executor.")
 		return false
 	end
 
 	_ensureFolder()
 
-	local cfg = UILibrary.GetConfig()
+	local cfg = UILibrary.GetConfigTable()
 	local json = HttpService:JSONEncode(cfg)
 	writefile(_cfgPath(name), json)
+	return true
+end
+
+-- opts:
+--  fireCallbacks (default true)
+--  autofillMissing (default true)
+--  saveIfPatched (default true)
+function UILibrary.ReadAndApplyConfig(name, opts)
+	opts = opts or {}
+	local fireCallbacks = (opts.fireCallbacks == nil) and true or (opts.fireCallbacks == true)
+	local autofillMissing = (opts.autofillMissing == nil) and true or (opts.autofillMissing == true)
+	local saveIfPatched = (opts.saveIfPatched == nil) and true or (opts.saveIfPatched == true)
+
+	if typeof(readfile) ~= "function" then
+		warn("UILibrary.ReadAndApplyConfig: readfile() not available in this executor.")
+		return false
+	end
+
+	local path = _cfgPath(name)
+
+	if typeof(isfile) == "function" and not isfile(path) then
+		warn("UILibrary.ReadAndApplyConfig: config not found: " .. path)
+		return false
+	end
+
+	local raw = readfile(path)
+
+	local ok, cfg = pcall(function()
+		return HttpService:JSONDecode(raw)
+	end)
+
+	if not ok or typeof(cfg) ~= "table" then
+		warn("UILibrary.ReadAndApplyConfig: invalid config JSON.")
+		return false
+	end
+
+	cfg.Values = cfg.Values or {}
+
+	-- Patch missing keys for new UI elements
+	local patched = false
+	if autofillMissing then
+		for key, handle in pairs(UILibrary.__Registry) do
+			if cfg.Values[key] == nil then
+				local defaultValue
+				if handle and handle.__Type == "Toggle" then
+					defaultValue = false
+				elseif handle and handle.__Default ~= nil then
+					defaultValue = handle.__Default
+				else
+					defaultValue = false
+				end
+				cfg.Values[key] = defaultValue
+				patched = true
+			end
+		end
+	end
+
+	UILibrary.ApplyConfigTable(cfg, fireCallbacks)
+
+	if patched and saveIfPatched and typeof(writefile) == "function" then
+		_ensureFolder()
+		writefile(path, HttpService:JSONEncode(cfg))
+	end
 
 	return true
 end
 
---// load config from disk + auto-patch missing keys
-function UILibrary.LoadConfig(name, options)
+function UILibrary.ListConfigs()
+	if typeof(listfiles) ~= "function" then
+		return {}
+	end
+
+	_ensureFolder()
+
+	local files = listfiles(UILibrary.__ConfigFolder)
+	local out = {}
+
+	for _, f in ipairs(files) do
+		local name = tostring(f):match("([^/\\]+)%" .. UILibrary.__ConfigExt .. "$")
+		if name then
+			table.insert(out, name)
+		end
+	end
+
+	table.sort(out)
+	return out
+end
+
+--// ========================
+--// UI HELPERS
+--// ========================
+local function GetXY(GuiObject)
+	local X, Y = Mouse.X - GuiObject.AbsolutePosition.X, Mouse.Y - GuiObject.AbsolutePosition.Y
+	local MaxX, MaxY = GuiObject.AbsoluteSize.X, GuiObject.AbsoluteSize.Y
+	X, Y = math.clamp(X, 0, MaxX), math.clamp(Y, 0, MaxY)
+	return X, Y, X / MaxX, Y / MaxY
+end
+
+local function TitleIcon(ButtonOrNot)
+	local NewTitleIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
+	NewTitleIcon.Name = "TitleIcon"
+	NewTitleIcon.BackgroundTransparency = 1
+	NewTitleIcon.Image = IconLibraryID
+	NewTitleIcon.ImageRectOffset = Vector2.new(524, 764)
+	NewTitleIcon.ImageRectSize = Vector2.new(36, 36)
+	NewTitleIcon.Size = UDim2.new(0, 14, 0, 14)
+	NewTitleIcon.Position = UDim2.new(1, -17, 0, 3)
+	NewTitleIcon.Rotation = 180
+	NewTitleIcon.ZIndex = Level
+	return NewTitleIcon
+end
+
+local function TickIcon(ButtonOrNot)
+	local NewTickIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
+	NewTickIcon.Name = "TickIcon"
+	NewTickIcon.BackgroundTransparency = 1
+	NewTickIcon.Image = "rbxassetid://3926305904"
+	NewTickIcon.ImageRectOffset = Vector2.new(312, 4)
+	NewTickIcon.ImageRectSize = Vector2.new(24, 24)
+	NewTickIcon.Size = UDim2.new(1, -6, 1, -6)
+	NewTickIcon.Position = UDim2.new(0, 3, 0, 3)
+	NewTickIcon.ZIndex = Level
+	return NewTickIcon
+end
+
+local function DropdownIcon(ButtonOrNot)
+	local NewDropdownIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
+	NewDropdownIcon.Name = "DropdownIcon"
+	NewDropdownIcon.BackgroundTransparency = 1
+	NewDropdownIcon.Image = IconLibraryID2
+	NewDropdownIcon.ImageRectOffset = Vector2.new(324, 364)
+	NewDropdownIcon.ImageRectSize = Vector2.new(36, 36)
+	NewDropdownIcon.Size = UDim2.new(0, 16, 0, 16)
+	NewDropdownIcon.Position = UDim2.new(1, -18, 0, 2)
+	NewDropdownIcon.ZIndex = Level
+	return NewDropdownIcon
+end
+
+local function SearchIcon(ButtonOrNot)
+	local NewSearchIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
+	NewSearchIcon.Name = "SearchIcon"
+	NewSearchIcon.BackgroundTransparency = 1
+	NewSearchIcon.Image = IconLibraryID
+	NewSearchIcon.ImageRectOffset = Vector2.new(964, 324)
+	NewSearchIcon.ImageRectSize = Vector2.new(36, 36)
+	NewSearchIcon.Size = UDim2.new(0, 16, 0, 16)
+	NewSearchIcon.Position = UDim2.new(0, 2, 0, 2)
+	NewSearchIcon.ZIndex = Level
+	return NewSearchIcon
+end
+
+local function RoundBox(CornerRadius, ButtonOrNot)
+	local NewRoundBox = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
+	NewRoundBox.BackgroundTransparency = 1
+	NewRoundBox.Image = "rbxassetid://3570695787"
+	NewRoundBox.SliceCenter = Rect.new(100, 100, 100, 100)
+	NewRoundBox.SliceScale = math.clamp((CornerRadius or 5) * 0.01, 0.01, 1)
+	NewRoundBox.ScaleType = Enum.ScaleType.Slice
+	NewRoundBox.ZIndex = Level
+	return NewRoundBox
+end
+
+local function DropShadow()
+	local NewDropShadow = Instance.new("ImageLabel")
+	NewDropShadow.Name = "DropShadow"
+	NewDropShadow.BackgroundTransparency = 1
+	NewDropShadow.Image = DropShadowID
+	NewDropShadow.ImageTransparency = DropShadowTransparency
+	NewDropShadow.Size = UDim2.new(1, 0, 1, 0)
+	NewDropShadow.ZIndex = Level
+	return NewDropShadow
+end
+
+local function Frame()
+	local NewFrame = Instance.new("Frame")
+	NewFrame.BorderSizePixel = 0
+	NewFrame.ZIndex = Level
+	return NewFrame
+end
+
+local function ScrollingFrame()
+	local NewScrollingFrame = Instance.new("ScrollingFrame")
+	NewScrollingFrame.BackgroundTransparency = 1
+	NewScrollingFrame.BorderSizePixel = 0
+	NewScrollingFrame.ScrollBarThickness = 0
+	NewScrollingFrame.ZIndex = Level
+	return NewScrollingFrame
+end
+
+local function TextButton(Text, Size)
+	local NewTextButton = Instance.new("TextButton")
+	NewTextButton.Text = Text
+	NewTextButton.AutoButtonColor = false
+	NewTextButton.Font = MainFont
+	NewTextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	NewTextButton.BackgroundTransparency = 1
+	NewTextButton.TextSize = Size or 12
+	NewTextButton.Size = UDim2.new(1, 0, 1, 0)
+	NewTextButton.ZIndex = Level
+	return NewTextButton
+end
+
+local function TextBox(Text, Size)
+	local NewTextBox = Instance.new("TextBox")
+	NewTextBox.Text = Text
+	NewTextBox.Font = MainFont
+	NewTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	NewTextBox.BackgroundTransparency = 1
+	NewTextBox.TextSize = Size or 12
+	NewTextBox.Size = UDim2.new(1, 0, 1, 0)
+	NewTextBox.ZIndex = Level
+	return NewTextBox
+end
+
+local function TextLabel(Text, Size)
+	local NewTextLabel = Instance.new("TextLabel")
+	NewTextLabel.Text = Text
+	NewTextLabel.Font = MainFont
+	NewTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	NewTextLabel.BackgroundTransparency = 1
+	NewTextLabel.TextSize = Size or 12
+	NewTextLabel.Size = UDim2.new(1, 0, 1, 0)
+	NewTextLabel.ZIndex = Level
+	return NewTextLabel
+end
+
+local function Tween(GuiObject, Dictionary)
+	local TweenBase = TweenService:Create(GuiObject, GlobalTweenInfo, Dictionary)
+	TweenBase:Play()
+	return TweenBase
+end
+
+--// ========================
+--// UILibrary.Load
+--// ========================
+function UILibrary.Load(GUITitle)
 	options = options or {}
 
 	local fireCallbacks = (options.fireCallbacks == nil) and true or (options.fireCallbacks == true)
