@@ -14,6 +14,144 @@ local CoreGuiService = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
 
+--// ========================
+--// CONFIG SYSTEM (Save/Load via writefile)
+--// ========================
+local HttpService = game:GetService("HttpService")
+
+UILibrary.__Registry = UILibrary.__Registry or {} -- [key] = handle
+UILibrary.__Meta = UILibrary.__Meta or { Version = 1, Folder = "WetHubConfigs" }
+
+local function _sanitizeKey(s)
+	s = tostring(s or "")
+	s = s:gsub("[%c\r\n\t]", " ")
+	s = s:gsub("%s+", " ")
+	s = s:gsub("[^%w%s%-%_%.%[%]%(%)%#%&]", "")
+	s = s:sub(1, 120)
+	return s
+end
+
+local function _makeKey(pageTitle, kind, text)
+	return _sanitizeKey(pageTitle) .. " :: " .. _sanitizeKey(kind) .. " :: " .. _sanitizeKey(text)
+end
+
+local function _register(key, handle)
+	UILibrary.__Registry[key] = handle
+end
+
+-- returns a plain lua table of all values
+function UILibrary.GetConfig()
+	local out = {
+		Version = UILibrary.__Meta.Version,
+		SavedAt = os.time(),
+		Values = {}
+	}
+
+	for key, handle in pairs(UILibrary.__Registry) do
+		if handle and typeof(handle.Get) == "function" then
+			local ok, val = pcall(function()
+				return handle:Get()
+			end)
+			if ok then
+				out.Values[key] = val
+			end
+		end
+	end
+
+	return out
+end
+
+-- applies config; fireCallbacks=true by default (so your _G values update)
+function UILibrary.ApplyConfig(cfg, fireCallbacks)
+	fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
+	if typeof(cfg) ~= "table" or typeof(cfg.Values) ~= "table" then return false end
+
+	for key, val in pairs(cfg.Values) do
+		local handle = UILibrary.__Registry[key]
+		if handle and typeof(handle.Set) == "function" then
+			pcall(function()
+				handle:Set(val, fireCallbacks)
+			end)
+		end
+	end
+
+	return true
+end
+
+local function _ensureFolder()
+	if typeof(makefolder) == "function" and typeof(isfolder) == "function" then
+		if not isfolder(UILibrary.__Meta.Folder) then
+			makefolder(UILibrary.__Meta.Folder)
+		end
+	elseif typeof(makefolder) == "function" then
+		-- some execs don't have isfolder
+		pcall(function() makefolder(UILibrary.__Meta.Folder) end)
+	end
+end
+
+local function _cfgPath(name)
+	name = _sanitizeKey(name)
+	if name == "" then name = "default" end
+	return UILibrary.__Meta.Folder .. "/" .. name .. ".json"
+end
+
+function UILibrary.SaveConfig(name)
+	if typeof(writefile) ~= "function" then
+		warn("UILibrary.SaveConfig: writefile() not available in this environment.")
+		return false
+	end
+
+	_ensureFolder()
+
+	local cfg = UILibrary.GetConfig()
+	local json = HttpService:JSONEncode(cfg)
+	writefile(_cfgPath(name), json)
+	return true
+end
+
+function UILibrary.LoadConfig(name, fireCallbacks)
+	if typeof(readfile) ~= "function" then
+		warn("UILibrary.LoadConfig: readfile() not available in this environment.")
+		return false
+	end
+
+	local path = _cfgPath(name)
+
+	if typeof(isfile) == "function" and not isfile(path) then
+		warn("UILibrary.LoadConfig: config not found: " .. path)
+		return false
+	end
+
+	local raw = readfile(path)
+	local ok, cfg = pcall(function()
+		return HttpService:JSONDecode(raw)
+	end)
+	if not ok then
+		warn("UILibrary.LoadConfig: invalid JSON")
+		return false
+	end
+
+	return UILibrary.ApplyConfig(cfg, (fireCallbacks == nil) and true or fireCallbacks)
+end
+
+function UILibrary.ListConfigs()
+	if typeof(listfiles) ~= "function" then
+		return {}
+	end
+	_ensureFolder()
+	local files = listfiles(UILibrary.__Meta.Folder)
+	local out = {}
+	for _, f in ipairs(files) do
+		local name = tostring(f):match("([^/\\]+)%.json$")
+		if name then
+			table.insert(out, name)
+		end
+	end
+	table.sort(out)
+	return out
+end
+
+
 local TweenTime = 0.1
 local Level = 1
 
