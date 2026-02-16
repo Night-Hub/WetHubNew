@@ -1,7 +1,8 @@
 --// ========================
---// WetHub UI Library (Fixed)
+--// WetHub UI Library (Fixed + ValueButton)
 --// - Fixes: AddColourPicker calling AddSlider before it exists (order)
 --// - Fixes: SearchIcon local shadowing the SearchIcon() function
+--// - Adds: AddValueButton() -> normal button row + right red/green square
 --// ========================
 
 local Player = game.Players.LocalPlayer
@@ -216,6 +217,57 @@ function UILibrary.Load(GUITitle)
 	MenuBar.CanvasSize = UDim2.new(0, 0, 0, 0)
 	MenuBar.Parent = MainFrame
 
+--// ========================
+--// LEFT SIDEBAR PROFILE BAR (smaller + tab colour)
+--// ========================
+
+local ProfileBarHeight = 40
+local ProfileBarPadding = 5
+
+-- shrink MenuBar to make space
+MenuBar.Size = UDim2.new(0, 100, 0, 235 - ProfileBarHeight - ProfileBarPadding)
+
+local ProfileBar = RoundBox(5)
+ProfileBar.Name = "ProfileBar"
+ProfileBar.ImageColor3 = Color3.fromRGB(40, 40, 40) -- SAME as tab buttons
+ProfileBar.Size = UDim2.new(0, 100, 0, ProfileBarHeight)
+ProfileBar.Position = UDim2.new(0, 5, 1, -(ProfileBarHeight + ProfileBarPadding))
+ProfileBar.ZIndex = Level + 1
+ProfileBar.Parent = MainFrame
+ProfileBar.ClipsDescendants = true
+
+-- avatar (slightly smaller)
+local Avatar = Instance.new("ImageLabel")
+Avatar.BackgroundTransparency = 1
+Avatar.Size = UDim2.new(0, 28, 0, 28)
+Avatar.Position = UDim2.new(0, 6, 0.5, -14)
+Avatar.ZIndex = ProfileBar.ZIndex + 1
+Avatar.Parent = ProfileBar
+Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
+
+local AvatarCorner = Instance.new("UICorner")
+AvatarCorner.CornerRadius = UDim.new(1, 0)
+AvatarCorner.Parent = Avatar
+
+-- welcome text (tighter spacing)
+local Welcome = Instance.new("TextLabel")
+Welcome.BackgroundTransparency = 1
+Welcome.TextXAlignment = Enum.TextXAlignment.Left
+Welcome.TextYAlignment = Enum.TextYAlignment.Center
+Welcome.Font = MainFont
+Welcome.TextSize = 11
+Welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
+Welcome.TextTransparency = 0.15
+Welcome.TextWrapped = true
+Welcome.Size = UDim2.new(1, -40, 1, 0)
+Welcome.Position = UDim2.new(0, 36, 0, 0)
+Welcome.ZIndex = ProfileBar.ZIndex + 1
+Welcome.Parent = ProfileBar
+
+local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
+Welcome.Text = "Welcome,\n" .. shownName .. "!"
+
+
 	DisplayFrame = RoundBox(5)
 	DisplayFrame.Name = "Display"
 	DisplayFrame.ImageColor3 = Color3.fromRGB(20, 20, 20)
@@ -229,20 +281,25 @@ function UILibrary.Load(GUITitle)
 	TitleBar.Size = UDim2.new(1, -10, 0, 20)
 	TitleBar.Position = UDim2.new(0, 5, 0, 5)
 	TitleBar.Parent = MainFrame
+	TitleBar.ClipsDescendants = false
 
 	Level += 1
 
-	local MinimiseButton, TitleButton
-	local MinimiseToggle = true
+local MinimiseButton, TitleButton
+local MinimiseToggle = true
+	
+--// minimise button (right side)
+MinimiseButton = TitleIcon(true)
+MinimiseButton.Name = "Minimise"
+MinimiseButton.Parent = TitleBar
 
-	MinimiseButton = TitleIcon(true)
-	MinimiseButton.Name = "Minimise"
-	MinimiseButton.Parent = TitleBar
+--// title text (shifted right to make room for logo)
+TitleButton = TextButton(GUITitle, 14)
+TitleButton.Name = "TitleButton"
+TitleButton.Position = UDim2.new(0, 24, 0, 0)
+TitleButton.Size = UDim2.new(1, -44, 1, 0) -- left logo space + right minimise space
+TitleButton.Parent = TitleBar
 
-	TitleButton = TextButton(GUITitle, 14)
-	TitleButton.Name = "TitleButton"
-	TitleButton.Size = UDim2.new(1, -20, 1, 0)
-	TitleButton.Parent = TitleBar
 
 	MinimiseButton.MouseButton1Down:Connect(function()
 		MinimiseToggle = not MinimiseToggle
@@ -593,7 +650,6 @@ function UILibrary.Load(GUITitle)
 				blue = Color3.fromRGB(0, 0, 255),
 			}
 
-			-- support: "purple", {r,g,b}, Color3
 			if typeof(DefaultColour) == "table" then
 				DefaultColour = Color3.fromRGB(DefaultColour[1] or 255, DefaultColour[2] or 255, DefaultColour[3] or 255)
 			elseif typeof(DefaultColour) == "string" then
@@ -711,6 +767,132 @@ function UILibrary.Load(GUITitle)
 			return BlankContainer
 		end
 
+		--// ========================
+		--// VALUE BUTTON (NORMAL BUTTON LOOK + RIGHT RED/GREEN SQUARE)
+		--// ========================
+		-- Create a normal button row with a right indicator square:
+		--   Red when false, Green when true.
+		--
+		-- Supports:
+		--   1) Polling getter:
+		--      Page.AddValueButton("Cloak", false, {refresh=0.25, button=true}, function(current) print("click", current) end, function() return CloakExists end)
+		--
+		--   2) Manual set:
+		--      local h = Page.AddValueButton("Cloak", false)
+		--      h:Set(true)
+		function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
+			Options = Options or {}
+
+			local ButtonEnabled = (Options.button == nil) and true or (Options.button == true)
+			local RefreshRate = tonumber(Options.refresh) or 0.25
+
+			local ValueBool = (Default == true)
+
+			local ButtonContainer = Frame()
+			ButtonContainer.Name = Text .. "VALUEBUTTON"
+			ButtonContainer.Size = UDim2.new(1, 0, 0, 20)
+			ButtonContainer.BackgroundTransparency = 1
+			ButtonContainer.Parent = DisplayPage
+
+			local ButtonForeground = RoundBox(5)
+			ButtonForeground.Name = "ButtonForeground"
+			ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
+			ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			ButtonForeground.Parent = ButtonContainer
+
+			local HiddenButton = TextButton(Text, 12)
+			HiddenButton.Name = "ValueButton"
+			HiddenButton.Parent = ButtonForeground
+
+			-- right indicator container (same width as your toggle right side)
+			local IndicatorHolder = Frame()
+			IndicatorHolder.Name = "IndicatorHolder"
+			IndicatorHolder.BackgroundTransparency = 1
+			IndicatorHolder.Size = UDim2.new(0, 20, 0, 20)
+			IndicatorHolder.Position = UDim2.new(1, -20, 0, 0)
+			IndicatorHolder.ZIndex = Level + 2
+			IndicatorHolder.Parent = ButtonForeground
+
+			-- square itself
+			local Indicator = Frame()
+			Indicator.Name = "Indicator"
+			Indicator.BorderSizePixel = 0
+			Indicator.Size = UDim2.new(0, 12, 0, 12)
+			Indicator.Position = UDim2.new(0.5, -6, 0.5, -6)
+			Indicator.ZIndex = Level + 3
+			Indicator.Parent = IndicatorHolder
+
+			local IndicatorCorner = Instance.new("UICorner")
+			IndicatorCorner.CornerRadius = UDim.new(0, 3)
+			IndicatorCorner.Parent = Indicator
+
+			local GREEN = Color3.fromRGB(0, 255, 109)
+			local RED = Color3.fromRGB(255, 160, 160)
+
+			local function Apply(NewBool)
+				NewBool = (NewBool == true)
+				if NewBool == ValueBool then
+					return
+				end
+				ValueBool = NewBool
+				Tween(Indicator, { BackgroundColor3 = ValueBool and GREEN or RED })
+			end
+
+			Indicator.BackgroundColor3 = ValueBool and GREEN or RED
+
+			HiddenButton.MouseButton1Down:Connect(function()
+				if ButtonEnabled and OnClick then
+					OnClick(ValueBool)
+				end
+
+				-- normal button press feedback
+				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(45, 45, 45) })
+				Tween(HiddenButton, { TextTransparency = 0.5 })
+				task.wait(TweenTime)
+				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(35, 35, 35) })
+				Tween(HiddenButton, { TextTransparency = 0 })
+			end)
+
+			local GetterConn = nil
+			if typeof(Getter) == "function" then
+				local acc = 0
+				GetterConn = RunService.Heartbeat:Connect(function(dt)
+					acc += dt
+					if acc < RefreshRate then
+						return
+					end
+					acc = 0
+
+					local ok, res = pcall(Getter)
+					if ok and res ~= nil then
+						Apply(res)
+					end
+				end)
+			end
+
+			local Handle = {}
+
+			function Handle:Set(NewBool)
+				Apply(NewBool)
+			end
+
+			function Handle:Get()
+				return ValueBool
+			end
+
+			function Handle:Destroy()
+				if GetterConn then
+					GetterConn:Disconnect()
+					GetterConn = nil
+				end
+				if ButtonContainer then
+					ButtonContainer:Destroy()
+				end
+			end
+
+			return Handle
+		end
+
 		function PageLibrary.AddToggle(Text, Default, Callback)
 			local ThisToggle = Default or false
 
@@ -769,5 +951,243 @@ function UILibrary.Load(GUITitle)
 
 	return TabLibrary
 end
+
+--// ========================
+--// NOTIFY (drop-in)
+--// Paste this right before: return UILibrary
+--// Usage: UILibrary.Notify("Title","Text",3)  -- duration in seconds
+--// ========================
+function UILibrary.Notify(Title, Text, Duration, LogoImage)
+	--// args
+	Title = tostring(Title or "Notification")
+	Text = tostring(Text or "")
+	Duration = tonumber(Duration) or 3
+	LogoImage = LogoImage or "rbxassetid://139644262377528"
+
+	--// services
+	local Players = game:GetService("Players")
+	local CoreGui = game:GetService("CoreGui")
+	local RunService = game:GetService("RunService")
+	local TweenService = game:GetService("TweenService")
+
+	--// find the ScreenGui created by UILibrary.Load (no edits to Load needed)
+	local function findLoadedGui()
+		local function scan(parent)
+			for _, g in ipairs(parent:GetChildren()) do
+				if g:IsA("ScreenGui") then
+					local cf = g:FindFirstChild("ContainerFrame")
+					if cf and cf:FindFirstChild("MainFrame") then
+						local mf = cf.MainFrame
+						if mf:FindFirstChild("TitleBar") and mf:FindFirstChild("Display") and mf:FindFirstChild("MenuBar") then
+							return g
+						end
+					end
+				end
+			end
+			return nil
+		end
+
+		local pg = Players.LocalPlayer and (Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or Players.LocalPlayer:WaitForChild("PlayerGui"))
+		return scan(CoreGui) or (pg and scan(pg)) or nil
+	end
+
+	local Gui = findLoadedGui()
+	if not Gui then
+		warn("UILibrary.Notify: couldn't find loaded UI (call after UILibrary.Load).")
+		return
+	end
+
+	--// ensure holder exists (created once)
+	local Holder = Gui:FindFirstChild("NotificationHolder")
+	if not Holder then
+		Holder = Instance.new("Frame")
+		Holder.Name = "NotificationHolder"
+		Holder.BackgroundTransparency = 1
+		Holder.Size = UDim2.new(0, 280, 1, 0)
+		Holder.Position = UDim2.new(1, -290, 0, 12) -- top-right margin
+		Holder.ZIndex = 9999
+		Holder.Parent = Gui
+
+		local List = Instance.new("UIListLayout")
+		List.SortOrder = Enum.SortOrder.LayoutOrder
+		List.Padding = UDim.new(0, 8)
+		List.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		List.VerticalAlignment = Enum.VerticalAlignment.Top
+		List.Parent = Holder
+	end
+
+	--// toast root
+	local Toast = Instance.new("Frame")
+	Toast.Name = "Toast"
+	Toast.BackgroundTransparency = 1
+	Toast.Size = UDim2.new(0, 280, 0, 82)
+	Toast.ZIndex = 9999
+	Toast.Parent = Holder
+
+	--// start offscreen (to the right) so it can tween in
+	Toast.Position = UDim2.new(1, 300, 0, 0)
+
+	--// card
+	local Card = Instance.new("Frame")
+	Card.Name = "Card"
+	Card.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	Card.BorderSizePixel = 0
+	Card.Size = UDim2.new(1, 0, 1, 0)
+	Card.ZIndex = 10000
+	Card.Parent = Toast
+
+	local CardCorner = Instance.new("UICorner")
+	CardCorner.CornerRadius = UDim.new(0, 10)
+	CardCorner.Parent = Card
+
+	--// rainbow border (2px)
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Thickness = 2
+	Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	Stroke.Parent = Card
+
+	--// title bar
+	local TitleBar = Instance.new("Frame")
+	TitleBar.BorderSizePixel = 0
+	TitleBar.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	TitleBar.Size = UDim2.new(1, -12, 0, 22)
+	TitleBar.Position = UDim2.new(0, 6, 0, 6)
+	TitleBar.ZIndex = 10001
+	TitleBar.Parent = Card
+
+	local TitleCorner = Instance.new("UICorner")
+	TitleCorner.CornerRadius = UDim.new(0, 12)
+	TitleCorner.Parent = TitleBar
+
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Size = UDim2.new(1, -10, 1, 0)
+	TitleLabel.Position = UDim2.new(0, 5, 0, 0)
+	TitleLabel.Font = MainFont
+	TitleLabel.TextSize = 14
+	TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TitleLabel.Text = Title
+	TitleLabel.ZIndex = 10002
+	TitleLabel.Parent = TitleBar
+
+	--// logo
+	local Logo = Instance.new("ImageLabel")
+	Logo.BackgroundTransparency = 1
+	Logo.Size = UDim2.new(0, 42, 0, 42)
+	Logo.Position = UDim2.new(0, 10, 0, 26)
+	Logo.Image = LogoImage
+	Logo.ZIndex = 10002
+	Logo.Parent = Card
+
+	local LogoCorner = Instance.new("UICorner")
+	LogoCorner.CornerRadius = UDim.new(0, 8)
+	LogoCorner.Parent = Logo
+
+	--// body text
+	local Body = Instance.new("TextLabel")
+	Body.BackgroundTransparency = 1
+	Body.Size = UDim2.new(1, -64, 0, 42)
+	Body.Position = UDim2.new(0, 58, 0, 32)
+	Body.Font = MainFont
+	Body.TextSize = 13
+	Body.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Body.TextXAlignment = Enum.TextXAlignment.Left
+	Body.TextYAlignment = Enum.TextYAlignment.Top
+	Body.TextWrapped = true
+	Body.Text = Text
+	Body.ZIndex = 10002
+	Body.Parent = Card
+
+	--// skinny progress bar (6px height)
+	local BarBack = Instance.new("Frame")
+	BarBack.BorderSizePixel = 0
+	BarBack.BackgroundColor3 = Color3.fromRGB(35, 0, 0)
+	BarBack.Size = UDim2.new(1, -12, 0, 6)
+	BarBack.Position = UDim2.new(0, 6, 1, -10)
+	BarBack.ZIndex = 10001
+	BarBack.Parent = Card
+
+	local BarBackCorner = Instance.new("UICorner")
+	BarBackCorner.CornerRadius = UDim.new(0, 6)
+	BarBackCorner.Parent = BarBack
+
+	local BarFill = Instance.new("Frame")
+	BarFill.BorderSizePixel = 0
+	BarFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	BarFill.Size = UDim2.new(1, 0, 1, 0)
+	BarFill.Position = UDim2.new(0, 0, 0, 0)
+	BarFill.ZIndex = 10002
+	BarFill.Parent = BarBack
+
+	local BarFillCorner = Instance.new("UICorner")
+	BarFillCorner.CornerRadius = UDim.new(0, 6)
+	BarFillCorner.Parent = BarFill
+
+	--// fade setup
+	Card.BackgroundTransparency = 1
+	TitleBar.BackgroundTransparency = 1
+	Logo.ImageTransparency = 1
+	TitleLabel.TextTransparency = 1
+	Body.TextTransparency = 1
+	BarBack.BackgroundTransparency = 1
+	BarFill.BackgroundTransparency = 1
+
+	--// tween in: slide + fade
+	TweenService:Create(
+		Toast,
+		TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{Position = UDim2.new(0, 0, 0, 0)}
+	):Play()
+
+	TweenService:Create(Card, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(TitleBar, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(Logo, TweenInfo.new(0.14), {ImageTransparency = 0}):Play()
+	TweenService:Create(TitleLabel, TweenInfo.new(0.14), {TextTransparency = 0}):Play()
+	TweenService:Create(Body, TweenInfo.new(0.14), {TextTransparency = 0}):Play()
+	TweenService:Create(BarBack, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(BarFill, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
+
+	--// rainbow border loop
+	local start = os.clock()
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		if not Toast or not Toast.Parent then
+			if conn then conn:Disconnect() end
+			return
+		end
+
+		local t = os.clock() - start
+		local hue = (t * 0.35) % 1
+		Stroke.Color = Color3.fromHSV(hue, 1, 1)
+	end)
+
+	--// progress drain
+	TweenService:Create(
+		BarFill,
+		TweenInfo.new(Duration, Enum.EasingStyle.Linear),
+		{Size = UDim2.new(0, 0, 1, 0)}
+	):Play()
+
+	--// tween out + cleanup
+	task.delay(Duration, function()
+		if not Toast or not Toast.Parent then
+			if conn then conn:Disconnect() end
+			return
+		end
+
+		local tweenOut = TweenService:Create(
+			Toast,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+			{Position = UDim2.new(1, 300, 0, 0)}
+		)
+
+		tweenOut:Play()
+		tweenOut.Completed:Wait()
+
+		if conn then conn:Disconnect() end
+		Toast:Destroy()
+	end)
+end
+
 
 return UILibrary
