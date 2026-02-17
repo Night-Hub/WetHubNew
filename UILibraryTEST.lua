@@ -204,55 +204,66 @@ function UILibrary.Load(GUITitle)
 	MainFrame.Position = UDim2.new(0,25,0,15)
 	MainFrame.ImageColor3 = Color3.fromRGB(30,30,30)
 	MainFrame.Parent = ContainerFrame
+-- profile bar under tabs
+local ProfileBarHeight = 40
+local ProfileBarPadding = 5
+MenuBar.Size = UDim2.new(0,100,0,235 - ProfileBarHeight - ProfileBarPadding)
 
-	-- left tabs (shortened to make room for profile bar)
-	local ProfileBarHeight = 40
-	local ProfileBarPadding = 5
+local ProfileBar = RoundBox(5)
+ProfileBar.Name = "ProfileBar"
+ProfileBar.ImageColor3 = Color3.fromRGB(40,40,40)
+ProfileBar.Size = UDim2.new(0,100,0,ProfileBarHeight)
+ProfileBar.Position = UDim2.new(0,5,1, -(ProfileBarHeight + ProfileBarPadding))
+ProfileBar.Parent = MainFrame
+ProfileBar.ClipsDescendants = true
 
-	local MenuBar = ScrollingFrame()
-	MenuBar.Name = "MenuBar"
-	MenuBar.BackgroundTransparency = 0.7
-	MenuBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
-	MenuBar.Size = UDim2.new(0,100,0,235 - ProfileBarHeight - ProfileBarPadding)
-	MenuBar.Position = UDim2.new(0,5,0,30)
-	MenuBar.CanvasSize = UDim2.new(0,0,0,0)
-	MenuBar.Parent = MainFrame
+-- IMPORTANT: force ZIndex stack so the avatar is not hidden by the RoundBox image
+ProfileBar.ZIndex = Level + 5
 
-	-- profile bar under tabs
-	local ProfileBar = RoundBox(5)
-	ProfileBar.Name = "ProfileBar"
-	ProfileBar.ImageColor3 = Color3.fromRGB(40,40,40)
-	ProfileBar.Size = UDim2.new(0,100,0,ProfileBarHeight)
-	ProfileBar.Position = UDim2.new(0,5,1, -(ProfileBarHeight + ProfileBarPadding))
-	ProfileBar.Parent = MainFrame
-	ProfileBar.ClipsDescendants = true
+local Avatar = Instance.new("ImageLabel")
+Avatar.Name = "Avatar"
+Avatar.BackgroundTransparency = 1
+Avatar.Size = UDim2.new(0, 28, 0, 28)
+Avatar.Position = UDim2.new(0, 6, 0.5, -14)
+Avatar.ZIndex = ProfileBar.ZIndex + 2
+Avatar.Parent = ProfileBar
 
-	local Avatar = Instance.new("ImageLabel")
-	Avatar.BackgroundTransparency = 1
-	Avatar.Size = UDim2.new(0, 28, 0, 28)
-	Avatar.Position = UDim2.new(0, 6, 0.5, -14)
-	Avatar.Parent = ProfileBar
-	Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
+local AvatarCorner = Instance.new("UICorner")
+AvatarCorner.CornerRadius = UDim.new(1, 0)
+AvatarCorner.Parent = Avatar
 
-	local AvatarCorner = Instance.new("UICorner")
-	AvatarCorner.CornerRadius = UDim.new(1, 0)
-	AvatarCorner.Parent = Avatar
+local Welcome = Instance.new("TextLabel")
+Welcome.Name = "Welcome"
+Welcome.BackgroundTransparency = 1
+Welcome.TextXAlignment = Enum.TextXAlignment.Left
+Welcome.TextYAlignment = Enum.TextYAlignment.Center
+Welcome.Font = MainFont
+Welcome.TextSize = 11
+Welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
+Welcome.TextTransparency = 0.15
+Welcome.TextWrapped = true
+Welcome.Size = UDim2.new(1, -40, 1, 0)
+Welcome.Position = UDim2.new(0, 36, 0, 0)
+Welcome.ZIndex = ProfileBar.ZIndex + 2
+Welcome.Parent = ProfileBar
 
-	local Welcome = Instance.new("TextLabel")
-	Welcome.BackgroundTransparency = 1
-	Welcome.TextXAlignment = Enum.TextXAlignment.Left
-	Welcome.TextYAlignment = Enum.TextYAlignment.Center
-	Welcome.Font = MainFont
-	Welcome.TextSize = 11
-	Welcome.TextColor3 = Color3.fromRGB(255,255,255)
-	Welcome.TextTransparency = 0.15
-	Welcome.TextWrapped = true
-	Welcome.Size = UDim2.new(1, -40, 1, 0)
-	Welcome.Position = UDim2.new(0, 36, 0, 0)
-	Welcome.Parent = ProfileBar
+local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
+Welcome.Text = "Welcome,\n" .. shownName .. "!"
 
-	local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
-	Welcome.Text = "Welcome,\n" .. shownName .. "!"
+-- More reliable than rbxthumb string in some environments:
+task.spawn(function()
+	local ok, content = pcall(function()
+		local img = Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		return img
+	end)
+
+	if ok and content and content ~= "" then
+		Avatar.Image = content
+	else
+		-- fallback (your original)
+		Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
+	end
+end)
 
 	local DisplayFrame = RoundBox(5)
 	DisplayFrame.Name = "Display"
@@ -1093,7 +1104,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	local Logo = Instance.new("ImageLabel")
 	Logo.BackgroundTransparency = 1
 	Logo.Size = UDim2.new(0, 42, 0, 42)
-	Logo.Position = UDim2.new(0, 10, 0, 24)
+	Logo.Position = UDim2.new(0, 10, 0, 20)
 	Logo.Image = LogoImage
 	Logo.ZIndex = 10002
 	Logo.Parent = Card
