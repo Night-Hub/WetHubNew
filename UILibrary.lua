@@ -166,51 +166,51 @@ local UILibrary = {}
 
 function UILibrary.Load(GUITitle)
 	local TargetedParent = RunService:IsStudio() and Player:WaitForChild("PlayerGui") or CoreGuiService
-	
+
+	-- cleanup old
 	local FindOldInstance = TargetedParent:FindFirstChild(GUITitle)
-	
 	if FindOldInstance then
 		FindOldInstance:Destroy()
 	end
-	
-	local NewInstance, ContainerFrame, ContainerShadow, MainFrame
-	
-	NewInstance = Instance.new("ScreenGui")
+
+	-- create screen
+	local NewInstance = Instance.new("ScreenGui")
 	NewInstance.Name = GUITitle
 	NewInstance.Parent = TargetedParent
-	
-	ContainerFrame = Frame()
+
+	-- container
+	local ContainerFrame = Frame()
 	ContainerFrame.Name = "ContainerFrame"
-	ContainerFrame.Size = UDim2.new(0,500,0,300)
-	ContainerFrame.Position = UDim2.new(0.5,-250,0.5,-150)
+	ContainerFrame.Size = UDim2.new(0, 500, 0, 300)
+	ContainerFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
 	ContainerFrame.BackgroundTransparency = 1
 	ContainerFrame.Parent = NewInstance
-	
-	ContainerShadow = DropShadow()
+
+	-- shadow
+	local ContainerShadow = DropShadow()
 	ContainerShadow.Name = "Shadow"
 	ContainerShadow.Parent = ContainerFrame
-	
+
 	Level += 1
-	
-	MainFrame = RoundBox(5)
+
+	-- main card
+	local MainFrame = RoundBox(5)
 	MainFrame.ClipsDescendants = true
 	MainFrame.Name = "MainFrame"
-	MainFrame.Size = UDim2.new(1,-50,1,-30)
-	MainFrame.Position = UDim2.new(0,25,0,15)
-	MainFrame.ImageColor3 = Color3.fromRGB(30,30,30)
+	MainFrame.Size = UDim2.new(1, -50, 1, -30)
+	MainFrame.Position = UDim2.new(0, 25, 0, 15)
+	MainFrame.ImageColor3 = Color3.fromRGB(30, 30, 30)
 	MainFrame.Parent = ContainerFrame
-	
-	local MenuBar, DisplayFrame, TitleBar
-	
-	MenuBar = ScrollingFrame()
+
+	-- left tabs
+	local MenuBar = ScrollingFrame()
 	MenuBar.Name = "MenuBar"
 	MenuBar.BackgroundTransparency = 0.7
-	MenuBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
-	MenuBar.Size = UDim2.new(0,100,0,235)
-	MenuBar.Position = UDim2.new(0,5,0,30)
-	MenuBar.CanvasSize = UDim2.new(0,0,0,0)
+	MenuBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	MenuBar.Size = UDim2.new(0, 100, 0, 235)
+	MenuBar.Position = UDim2.new(0, 5, 0, 30)
+	MenuBar.CanvasSize = UDim2.new(0, 0, 0, 0)
 	MenuBar.Parent = MainFrame
-
 
 	-- profile bar under tabs
 	local ProfileBarHeight = 40
@@ -263,164 +263,173 @@ function UILibrary.Load(GUITitle)
 	DisplayFrame.Position = UDim2.new(0, 110, 0, 30)
 	DisplayFrame.Parent = MainFrame
 
-	
-	DisplayFrame = RoundBox(5)
-	DisplayFrame.Name = "Display"
-	DisplayFrame.ImageColor3 = Color3.fromRGB(20,20,20)
-	DisplayFrame.Size = UDim2.new(1,-115,0,235)
-	DisplayFrame.Position = UDim2.new(0,110,0,30)
-	DisplayFrame.Parent = MainFrame
-	
-	TitleBar = RoundBox(5)
+	-- top bar
+	local TitleBar = RoundBox(5)
 	TitleBar.Name = "TitleBar"
-	TitleBar.ImageColor3 = Color3.fromRGB(40,40,40)
-	TitleBar.Size = UDim2.new(1,-10,0,20)
-	TitleBar.Position = UDim2.new(0,5,0,5)
+	TitleBar.ImageColor3 = Color3.fromRGB(40, 40, 40)
+	TitleBar.Size = UDim2.new(1, -10, 0, 20)
+	TitleBar.Position = UDim2.new(0, 5, 0, 5)
 	TitleBar.Parent = MainFrame
-	
+	TitleBar.ClipsDescendants = false
+
 	Level += 1
-	
-	local MinimiseButton, TitleButton
-	local MinimiseToggle = true
-	
-	MinimiseButton = TitleIcon(true)
+
+	local MinimiseButton = TitleIcon(true)
 	MinimiseButton.Name = "Minimise"
 	MinimiseButton.Parent = TitleBar
-	
-	TitleButton = TextButton(GUITitle, 14)
+
+	local TitleButton = TextButton(GUITitle, 14)
 	TitleButton.Name = "TitleButton"
-	TitleButton.Size = UDim2.new(1,-20,1,0)
+	TitleButton.Position = UDim2.new(0, 24, 0, 0)
+	TitleButton.Size = UDim2.new(1, -44, 1, 0)
 	TitleButton.Parent = TitleBar
-	
+
+	-- minimise
+	local MinimiseToggle = true
 	MinimiseButton.MouseButton1Down:Connect(function()
 		MinimiseToggle = not MinimiseToggle
 		if not MinimiseToggle then
-			Tween(MainFrame, {Size = UDim2.new(1,-50,0,30)})
-			Tween(MinimiseButton, {Rotation = 0})
-			Tween(ContainerShadow, {ImageTransparency = 1})
+			Tween(MainFrame, { Size = UDim2.new(1, -50, 0, 30) })
+			Tween(MinimiseButton, { Rotation = 0 })
+			Tween(ContainerShadow, { ImageTransparency = 1 })
 		else
-			Tween(MainFrame, {Size = UDim2.new(1,-50,1,-30)})
-			Tween(MinimiseButton, {Rotation = 180})
-			Tween(ContainerShadow, {ImageTransparency = DropShadowTransparency})
+			Tween(MainFrame, { Size = UDim2.new(1, -50, 1, -30) })
+			Tween(MinimiseButton, { Rotation = 180 })
+			Tween(ContainerShadow, { ImageTransparency = DropShadowTransparency })
 		end
 	end)
-	
+
+	-- drag
 	TitleButton.MouseButton1Down:Connect(function()
 		local LastMX, LastMY = Mouse.X, Mouse.Y
-		local Move, Kill
-		Move = Mouse.Move:Connect(function()
+		local MoveConn
+		local EndConn
+
+		MoveConn = Mouse.Move:Connect(function()
 			local NewMX, NewMY = Mouse.X, Mouse.Y
 			local DX, DY = NewMX - LastMX, NewMY - LastMY
-			ContainerFrame.Position += UDim2.new(0,DX,0,DY)
+			ContainerFrame.Position += UDim2.new(0, DX, 0, DY)
 			LastMX, LastMY = NewMX, NewMY
 		end)
-		Kill = UserInputService.InputEnded:Connect(function(input)
+
+		EndConn = UserInputService.InputEnded:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				Move:Disconnect()
-				Kill:Disconnect()
+				if MoveConn then MoveConn:Disconnect() end
+				if EndConn then EndConn:Disconnect() end
 			end
 		end)
 	end)
-	
+
 	Level += 1
-	
-	local MenuListLayout
-	
-	MenuListLayout = Instance.new("UIListLayout")
+
+	-- menu layout
+	local MenuListLayout = Instance.new("UIListLayout")
 	MenuListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	MenuListLayout.Padding = UDim.new(0,5)
+	MenuListLayout.Padding = UDim.new(0, 5)
 	MenuListLayout.Parent = MenuBar
-	
+
+	-- tab system
 	local TabCount = 0
-	
 	local TabLibrary = {}
-	
+
 	function TabLibrary.AddPage(PageTitle, SearchBarIncluded)
-		local SearchBarIncluded = (SearchBarIncluded == nil) and true or SearchBarIncluded
-		
+		SearchBarIncluded = (SearchBarIncluded == nil) and true or SearchBarIncluded
+		local __PageTitle = PageTitle
+
+		-- tab button
 		local PageContainer = RoundBox(5)
 		PageContainer.Name = PageTitle
-		PageContainer.Size = UDim2.new(1,0,0,20)
+		PageContainer.Size = UDim2.new(1, 0, 0, 20)
 		PageContainer.LayoutOrder = TabCount
-		PageContainer.ImageColor3 = (TabCount == 0) and Color3.fromRGB(50,50,50) or Color3.fromRGB(40,40,40)
+		PageContainer.ImageColor3 = (TabCount == 0) and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)
 		PageContainer.Parent = MenuBar
-		
+
 		local PageButton = TextButton(PageTitle, 14)
-		PageButton.Name = PageTitle.."Button"
+		PageButton.Name = PageTitle .. "Button"
 		PageButton.TextTransparency = (TabCount == 0) and 0 or 0.5
 		PageButton.Parent = PageContainer
-		
-		PageButton.MouseButton1Down:Connect(function()
-			spawn(function()
-				for _, Button in next, MenuBar:GetChildren() do
-					if Button:IsA("GuiObject") then
-						local IsButton = string.find(Button.Name:lower(), PageContainer.Name:lower())
-						local Button2 = Button:FindFirstChild(Button.Name.."Button")
-						Tween(Button, {ImageColor3 = IsButton and Color3.fromRGB(50,50,50) or Color3.fromRGB(40,40,40)})
-						Tween(Button2, {TextTransparency = IsButton and 0 or 0.5})
-					end
-				end
-			end)
-			spawn(function()
-				for _, Display in next, DisplayFrame:GetChildren() do
-					if Display:IsA("GuiObject") then
-						Display.Visible = string.find(Display.Name:lower(), PageContainer.Name:lower())
-					end
-				end
-			end)
-		end)
-		
+
+		-- page frame
 		local DisplayPage = ScrollingFrame()
 		DisplayPage.Visible = (TabCount == 0)
 		DisplayPage.Name = PageTitle
-		DisplayPage.Size = UDim2.new(1,0,1,0)
+		DisplayPage.Size = UDim2.new(1, 0, 1, 0)
 		DisplayPage.Parent = DisplayFrame
-		
+
+		-- switch
+		PageButton.MouseButton1Down:Connect(function()
+			task.spawn(function()
+				for _, Button in next, MenuBar:GetChildren() do
+					if Button:IsA("GuiObject") then
+						local isThis = (Button.Name:lower() == PageContainer.Name:lower())
+						local inner = Button:FindFirstChild(Button.Name .. "Button")
+						Tween(Button, { ImageColor3 = isThis and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40) })
+						if inner then
+							Tween(inner, { TextTransparency = isThis and 0 or 0.5 })
+						end
+					end
+				end
+			end)
+
+			task.spawn(function()
+				for _, Display in next, DisplayFrame:GetChildren() do
+					if Display:IsA("GuiObject") then
+						Display.Visible = (Display.Name:lower() == PageContainer.Name:lower())
+					end
+				end
+			end)
+		end)
+
 		TabCount += 1
-		
+
+		-- page layout
 		local DisplayList = Instance.new("UIListLayout")
 		DisplayList.SortOrder = Enum.SortOrder.LayoutOrder
-		DisplayList.Padding = UDim.new(0,5)
+		DisplayList.Padding = UDim.new(0, 5)
 		DisplayList.Parent = DisplayPage
-		
+
 		DisplayList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 			local Y1 = DisplayList.AbsoluteContentSize.Y
 			local Y2 = DisplayPage.AbsoluteWindowSize.Y
-			DisplayPage.CanvasSize = UDim2.new(0,0,(Y1/Y2)+0.05,0)
+			if Y2 <= 0 then
+				DisplayPage.CanvasSize = UDim2.new(0, 0, 0, 0)
+				return
+			end
+			DisplayPage.CanvasSize = UDim2.new(0, 0, (Y1 / Y2) + 0.05, 0)
 		end)
-		
+
 		local DisplayPadding = Instance.new("UIPadding")
-		DisplayPadding.PaddingBottom = UDim.new(0,5)
-		DisplayPadding.PaddingTop = UDim.new(0,5)
-		DisplayPadding.PaddingLeft = UDim.new(0,5)
-		DisplayPadding.PaddingRight = UDim.new(0,5)
+		DisplayPadding.PaddingBottom = UDim.new(0, 5)
+		DisplayPadding.PaddingTop = UDim.new(0, 5)
+		DisplayPadding.PaddingLeft = UDim.new(0, 5)
+		DisplayPadding.PaddingRight = UDim.new(0, 5)
 		DisplayPadding.Parent = DisplayPage
-		
+
+		-- optional search
 		if SearchBarIncluded then
 			local SearchBarContainer = RoundBox(5)
 			SearchBarContainer.Name = "SearchBar"
-			SearchBarContainer.ImageColor3 = Color3.fromRGB(35,35,35)
-			SearchBarContainer.Size = UDim2.new(1,0,0,20)
+			SearchBarContainer.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			SearchBarContainer.Size = UDim2.new(1, 0, 0, 20)
 			SearchBarContainer.Parent = DisplayPage
-			
+
 			local SearchBox = TextBox("Search...")
 			SearchBox.Name = "SearchInput"
-			SearchBox.Position = UDim2.new(0,20,0,0)
-			SearchBox.Size = UDim2.new(1,-20,1,0)
+			SearchBox.Position = UDim2.new(0, 20, 0, 0)
+			SearchBox.Size = UDim2.new(1, -20, 1, 0)
 			SearchBox.TextTransparency = 0.5
 			SearchBox.TextXAlignment = Enum.TextXAlignment.Left
 			SearchBox.Parent = SearchBarContainer
-			
-			local SearchIcon = SearchIcon()
-			SearchIcon.Parent = SearchBarContainer
-			
+
+			local SearchIconObj = SearchIcon()
+			SearchIconObj.Parent = SearchBarContainer
+
 			SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
 				local NewValue = SearchBox.Text
-				
 				for _, Element in next, DisplayPage:GetChildren() do
 					if Element:IsA("Frame") then
 						if not string.find(Element.Name:lower(), "label") then
-							if string.find(Element.Name:lower(), NewValue:lower()) then
+							if NewValue == "" or string.find(Element.Name:lower(), NewValue:lower()) then
 								Element.Visible = true
 							else
 								Element.Visible = false
