@@ -1052,6 +1052,26 @@ function UILibrary.Load(GUITitle)
 			return Handle
 		end
 
+
+		
+		function PageLibrary.AddBlank(Parent)
+			local BlankContainer = Frame()
+			BlankContainer.Name = "BlankSPACE"
+			BlankContainer.Size = UDim2.new(1, 0, 0, 20)
+			BlankContainer.BackgroundTransparency = 1
+			BlankContainer.Parent = Parent or DisplayPage
+
+			local BlankForeground = RoundBox(5)
+			BlankForeground.Name = "BlankForeground"
+			BlankForeground.Size = UDim2.new(1, 0, 1, 0)
+			BlankForeground.ImageTransparency = 1
+			BlankForeground.Parent = BlankContainer
+
+			return BlankContainer
+		end
+
+
+		
 		-- VALUE BUTTON (button with right square indicator)
 		function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
 			Options = Options or {}
