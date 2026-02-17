@@ -204,6 +204,17 @@ function UILibrary.Load(GUITitle)
 	MainFrame.Position = UDim2.new(0,25,0,15)
 	MainFrame.ImageColor3 = Color3.fromRGB(30,30,30)
 	MainFrame.Parent = ContainerFrame
+
+-- left menu (MUST exist before profile bar logic)
+local MenuBar = ScrollingFrame()
+MenuBar.Name = "MenuBar"
+MenuBar.BackgroundTransparency = 0.7
+MenuBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
+MenuBar.Size = UDim2.new(0,100,0,235)
+MenuBar.Position = UDim2.new(0,5,0,30)
+MenuBar.CanvasSize = UDim2.new(0,0,0,0)
+MenuBar.Parent = MainFrame
+	
 -- profile bar under tabs
 local ProfileBarHeight = 40
 local ProfileBarPadding = 5
