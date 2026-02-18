@@ -1,8 +1,11 @@
 --// ========================
---// WetHub UI Library (NO CONFIG) - MERGED BUILD
---// - Includes: ProfileBar under tabs, ValueButton, handles (Get/Set/Destroy) for Toggle/Slider/Dropdown/ColourPicker/ValueButton
---// - Includes: Notify() (fixed slide-in with UIListLayout)
---// - NO writefile/readfile/json/config registry
+--// WetHub UI Library (NO CONFIG) - MERGED BUILD (FIXED)
+--// - Fixes:
+--//   * ProfileBar/avatar NEVER visible when collapsed
+--//   * Collapse hides MenuBar/Display/ProfileBar (no peeking)
+--//   * Pixel CanvasSize (stable scrolling)
+--//   * Stable ZIndex (no runaway Level increments)
+--//   * Notify() uses loaded gui ref (no scanning)
 --// ========================
 
 local Player = game.Players.LocalPlayer
@@ -16,8 +19,6 @@ local TextService = game:GetService("TextService")
 local Players = game:GetService("Players")
 
 local TweenTime = 0.1
-local Level = 1
-
 local GlobalTweenInfo = TweenInfo.new(TweenTime)
 local AlteredTweenInfo = TweenInfo.new(TweenTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
@@ -26,14 +27,16 @@ local DropShadowTransparency = 0.3
 
 local IconLibraryID = "rbxassetid://3926305904"
 local IconLibraryID2 = "rbxassetid://3926307971"
-
 local MainFont = Enum.Font.Gotham
+
+--// ZIndex base (stable)
+local ZBASE = 10
 
 local function GetXY(GuiObject)
 	local X, Y = Mouse.X - GuiObject.AbsolutePosition.X, Mouse.Y - GuiObject.AbsolutePosition.Y
 	local MaxX, MaxY = GuiObject.AbsoluteSize.X, GuiObject.AbsoluteSize.Y
 	X, Y = math.clamp(X, 0, MaxX), math.clamp(Y, 0, MaxY)
-	return X, Y, X/MaxX, Y/MaxY
+	return X, Y, (MaxX == 0 and 0 or X/MaxX), (MaxY == 0 and 0 or Y/MaxY)
 end
 
 local function TitleIcon(ButtonOrNot)
@@ -46,7 +49,7 @@ local function TitleIcon(ButtonOrNot)
 	NewTitleIcon.Size = UDim2.new(0,14,0,14)
 	NewTitleIcon.Position = UDim2.new(1,-17,0,3)
 	NewTitleIcon.Rotation = 180
-	NewTitleIcon.ZIndex = Level
+	NewTitleIcon.ZIndex = ZBASE + 5
 	return NewTitleIcon
 end
 
@@ -59,7 +62,7 @@ local function TickIcon(ButtonOrNot)
 	NewTickIcon.ImageRectSize = Vector2.new(24,24)
 	NewTickIcon.Size = UDim2.new(1,-6,1,-6)
 	NewTickIcon.Position = UDim2.new(0,3,0,3)
-	NewTickIcon.ZIndex = Level
+	NewTickIcon.ZIndex = ZBASE + 10
 	return NewTickIcon
 end
 
@@ -72,7 +75,7 @@ local function DropdownIcon(ButtonOrNot)
 	NewDropdownIcon.ImageRectSize = Vector2.new(36,36)
 	NewDropdownIcon.Size = UDim2.new(0,16,0,16)
 	NewDropdownIcon.Position = UDim2.new(1,-18,0,2)
-	NewDropdownIcon.ZIndex = Level
+	NewDropdownIcon.ZIndex = ZBASE + 10
 	return NewDropdownIcon
 end
 
@@ -85,7 +88,7 @@ local function SearchIcon(ButtonOrNot)
 	NewSearchIcon.ImageRectSize = Vector2.new(36,36)
 	NewSearchIcon.Size = UDim2.new(0,16,0,16)
 	NewSearchIcon.Position = UDim2.new(0,2,0,2)
-	NewSearchIcon.ZIndex = Level
+	NewSearchIcon.ZIndex = ZBASE + 10
 	return NewSearchIcon
 end
 
@@ -96,7 +99,7 @@ local function RoundBox(CornerRadius, ButtonOrNot)
 	NewRoundBox.SliceCenter = Rect.new(100,100,100,100)
 	NewRoundBox.SliceScale = math.clamp((CornerRadius or 5) * 0.01, 0.01, 1)
 	NewRoundBox.ScaleType = Enum.ScaleType.Slice
-	NewRoundBox.ZIndex = Level
+	NewRoundBox.ZIndex = ZBASE
 	return NewRoundBox
 end
 
@@ -107,14 +110,14 @@ local function DropShadow()
 	NewDropShadow.Image = DropShadowID
 	NewDropShadow.ImageTransparency = DropShadowTransparency
 	NewDropShadow.Size = UDim2.new(1,0,1,0)
-	NewDropShadow.ZIndex = Level
+	NewDropShadow.ZIndex = ZBASE - 2
 	return NewDropShadow
 end
 
 local function Frame()
 	local NewFrame = Instance.new("Frame")
 	NewFrame.BorderSizePixel = 0
-	NewFrame.ZIndex = Level
+	NewFrame.ZIndex = ZBASE
 	return NewFrame
 end
 
@@ -123,7 +126,7 @@ local function ScrollingFrame()
 	NewScrollingFrame.BackgroundTransparency = 1
 	NewScrollingFrame.BorderSizePixel = 0
 	NewScrollingFrame.ScrollBarThickness = 0
-	NewScrollingFrame.ZIndex = Level
+	NewScrollingFrame.ZIndex = ZBASE
 	return NewScrollingFrame
 end
 
@@ -136,7 +139,7 @@ local function TextButton(Text, Size)
 	NewTextButton.BackgroundTransparency = 1
 	NewTextButton.TextSize = Size or 12
 	NewTextButton.Size = UDim2.new(1,0,1,0)
-	NewTextButton.ZIndex = Level
+	NewTextButton.ZIndex = ZBASE + 2
 	return NewTextButton
 end
 
@@ -148,7 +151,7 @@ local function TextBox(Text, Size)
 	NewTextBox.BackgroundTransparency = 1
 	NewTextBox.TextSize = Size or 12
 	NewTextBox.Size = UDim2.new(1,0,1,0)
-	NewTextBox.ZIndex = Level
+	NewTextBox.ZIndex = ZBASE + 2
 	return NewTextBox
 end
 
@@ -160,7 +163,7 @@ local function TextLabel(Text, Size)
 	NewTextLabel.BackgroundTransparency = 1
 	NewTextLabel.TextSize = Size or 12
 	NewTextLabel.Size = UDim2.new(1,0,1,0)
-	NewTextLabel.ZIndex = Level
+	NewTextLabel.ZIndex = ZBASE + 2
 	return NewTextLabel
 end
 
@@ -171,6 +174,7 @@ local function Tween(GuiObject, Dictionary)
 end
 
 local UILibrary = {}
+UILibrary.__loadedGui = nil -- used by Notify()
 
 function UILibrary.Load(GUITitle)
 	local TargetedParent = RunService:IsStudio() and Player:WaitForChild("PlayerGui") or CoreGuiService
@@ -182,141 +186,141 @@ function UILibrary.Load(GUITitle)
 
 	local NewInstance = Instance.new("ScreenGui")
 	NewInstance.Name = GUITitle
+	NewInstance.ResetOnSpawn = false
+	NewInstance.IgnoreGuiInset = true
 	NewInstance.Parent = TargetedParent
+	UILibrary.__loadedGui = NewInstance
 
 	local ContainerFrame = Frame()
 	ContainerFrame.Name = "ContainerFrame"
 	ContainerFrame.Size = UDim2.new(0,500,0,300)
 	ContainerFrame.Position = UDim2.new(0.5,-250,0.5,-150)
 	ContainerFrame.BackgroundTransparency = 1
+	ContainerFrame.ZIndex = ZBASE
 	ContainerFrame.Parent = NewInstance
 
 	local ContainerShadow = DropShadow()
 	ContainerShadow.Name = "Shadow"
 	ContainerShadow.Parent = ContainerFrame
 
-	Level += 1
-
 	local MainFrame = RoundBox(5)
-	MainFrame.ClipsDescendants = true
 	MainFrame.Name = "MainFrame"
 	MainFrame.Size = UDim2.new(1,-50,1,-30)
 	MainFrame.Position = UDim2.new(0,25,0,15)
 	MainFrame.ImageColor3 = Color3.fromRGB(30,30,30)
+	MainFrame.ClipsDescendants = true
+	MainFrame.ZIndex = ZBASE
 	MainFrame.Parent = ContainerFrame
 
--- left menu (MUST exist before profile bar logic)
-local MenuBar = ScrollingFrame()
-MenuBar.Name = "MenuBar"
-MenuBar.BackgroundTransparency = 0.7
-MenuBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
-MenuBar.Size = UDim2.new(0,100,0,235)
-MenuBar.Position = UDim2.new(0,5,0,30)
-MenuBar.CanvasSize = UDim2.new(0,0,0,0)
-MenuBar.Parent = MainFrame
-	
--- profile bar under tabs
-local ProfileBarHeight = 40
-local ProfileBarPadding = 5
-MenuBar.Size = UDim2.new(0,100,0,235 - ProfileBarHeight - ProfileBarPadding)
-
-local ProfileBar = RoundBox(5)
-ProfileBar.Name = "ProfileBar"
-ProfileBar.ImageColor3 = Color3.fromRGB(40,40,40)
-ProfileBar.Size = UDim2.new(0,100,0,ProfileBarHeight)
-ProfileBar.Position = UDim2.new(0,5,1, -(ProfileBarHeight + ProfileBarPadding))
-ProfileBar.Parent = MainFrame
-ProfileBar.ClipsDescendants = true
-
--- IMPORTANT: force ZIndex stack so the avatar is not hidden by the RoundBox image
-ProfileBar.ZIndex = Level + 5
-
-local Avatar = Instance.new("ImageLabel")
-Avatar.Name = "Avatar"
-Avatar.BackgroundTransparency = 1
-Avatar.Size = UDim2.new(0, 28, 0, 28)
-Avatar.Position = UDim2.new(0, 6, 0.5, -14)
-Avatar.ZIndex = ProfileBar.ZIndex + 2
-Avatar.Parent = ProfileBar
-
-local AvatarCorner = Instance.new("UICorner")
-AvatarCorner.CornerRadius = UDim.new(1, 0)
-AvatarCorner.Parent = Avatar
-
-local Welcome = Instance.new("TextLabel")
-Welcome.Name = "Welcome"
-Welcome.BackgroundTransparency = 1
-Welcome.TextXAlignment = Enum.TextXAlignment.Left
-Welcome.TextYAlignment = Enum.TextYAlignment.Center
-Welcome.Font = MainFont
-Welcome.TextSize = 11
-Welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
-Welcome.TextTransparency = 0.15
-Welcome.TextWrapped = true
-Welcome.Size = UDim2.new(1, -40, 1, 0)
-Welcome.Position = UDim2.new(0, 36, 0, 0)
-Welcome.ZIndex = ProfileBar.ZIndex + 2
-Welcome.Parent = ProfileBar
-
-local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
-Welcome.Text = "Welcome,\n" .. shownName .. "!"
-
--- More reliable than rbxthumb string in some environments:
-task.spawn(function()
-	local ok, content = pcall(function()
-		local img = Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-		return img
-	end)
-
-	if ok and content and content ~= "" then
-		Avatar.Image = content
-	else
-		-- fallback (your original)
-		Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
-	end
-end)
-
-	local DisplayFrame = RoundBox(5)
-	DisplayFrame.Name = "Display"
-	DisplayFrame.ImageColor3 = Color3.fromRGB(20,20,20)
-	DisplayFrame.Size = UDim2.new(1,-115,0,235)
-	DisplayFrame.Position = UDim2.new(0,110,0,30)
-	DisplayFrame.Parent = MainFrame
-
+	-- TitleBar
 	local TitleBar = RoundBox(5)
 	TitleBar.Name = "TitleBar"
 	TitleBar.ImageColor3 = Color3.fromRGB(40,40,40)
 	TitleBar.Size = UDim2.new(1,-10,0,20)
 	TitleBar.Position = UDim2.new(0,5,0,5)
-	TitleBar.Parent = MainFrame
 	TitleBar.ClipsDescendants = false
-
-	Level += 1
+	TitleBar.ZIndex = ZBASE + 3
+	TitleBar.Parent = MainFrame
 
 	local MinimiseButton = TitleIcon(true)
 	MinimiseButton.Name = "Minimise"
+	MinimiseButton.ZIndex = ZBASE + 6
 	MinimiseButton.Parent = TitleBar
 
 	local TitleButton = TextButton(GUITitle, 14)
 	TitleButton.Name = "TitleButton"
 	TitleButton.Position = UDim2.new(0,24,0,0)
 	TitleButton.Size = UDim2.new(1,-44,1,0)
+	TitleButton.ZIndex = ZBASE + 6
 	TitleButton.Parent = TitleBar
 
-	local MinimiseToggle = true
-	MinimiseButton.MouseButton1Down:Connect(function()
-		MinimiseToggle = not MinimiseToggle
-		if not MinimiseToggle then
-			Tween(MainFrame, {Size = UDim2.new(1,-50,0,30)})
-			Tween(MinimiseButton, {Rotation = 0})
-			Tween(ContainerShadow, {ImageTransparency = 1})
+	-- Display + Menu
+	local DisplayFrame = RoundBox(5)
+	DisplayFrame.Name = "Display"
+	DisplayFrame.ImageColor3 = Color3.fromRGB(20,20,20)
+	DisplayFrame.Size = UDim2.new(1,-115,0,235)
+	DisplayFrame.Position = UDim2.new(0,110,0,30)
+	DisplayFrame.ZIndex = ZBASE + 1
+	DisplayFrame.Parent = MainFrame
+
+	local MenuBar = ScrollingFrame()
+	MenuBar.Name = "MenuBar"
+	MenuBar.BackgroundTransparency = 0.7
+	MenuBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	MenuBar.Size = UDim2.new(0,100,0,235)
+	MenuBar.Position = UDim2.new(0,5,0,30)
+	MenuBar.CanvasSize = UDim2.new(0,0,0,0)
+	MenuBar.ZIndex = ZBASE + 1
+	MenuBar.Parent = MainFrame
+
+	-- Profile bar under tabs
+	local ProfileBarHeight = 40
+	local ProfileBarPadding = 5
+
+	-- reduce MenuBar height to make room
+	MenuBar.Size = UDim2.new(0,100,0,235 - ProfileBarHeight - ProfileBarPadding)
+
+	local ProfileBar = RoundBox(5)
+	ProfileBar.Name = "ProfileBar"
+	ProfileBar.ImageColor3 = Color3.fromRGB(40,40,40)
+	ProfileBar.Size = UDim2.new(0,100,0,ProfileBarHeight)
+	ProfileBar.Position = UDim2.new(0,5,1, -(ProfileBarHeight + ProfileBarPadding))
+	ProfileBar.ClipsDescendants = true
+	ProfileBar.ZIndex = ZBASE + 4
+	ProfileBar.Parent = MainFrame
+
+	local Avatar = Instance.new("ImageLabel")
+	Avatar.Name = "Avatar"
+	Avatar.BackgroundTransparency = 1
+	Avatar.Size = UDim2.new(0, 28, 0, 28)
+	Avatar.Position = UDim2.new(0, 6, 0.5, -14)
+	Avatar.ZIndex = ProfileBar.ZIndex + 1
+	Avatar.Parent = ProfileBar
+
+	local AvatarCorner = Instance.new("UICorner")
+	AvatarCorner.CornerRadius = UDim.new(1, 0)
+	AvatarCorner.Parent = Avatar
+
+	local Welcome = Instance.new("TextLabel")
+	Welcome.Name = "Welcome"
+	Welcome.BackgroundTransparency = 1
+	Welcome.TextXAlignment = Enum.TextXAlignment.Left
+	Welcome.TextYAlignment = Enum.TextYAlignment.Center
+	Welcome.Font = MainFont
+	Welcome.TextSize = 11
+	Welcome.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Welcome.TextTransparency = 0.15
+	Welcome.TextWrapped = true
+	Welcome.Size = UDim2.new(1, -40, 1, 0)
+	Welcome.Position = UDim2.new(0, 36, 0, 0)
+	Welcome.ZIndex = ProfileBar.ZIndex + 1
+	Welcome.Parent = ProfileBar
+
+	local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
+	Welcome.Text = "Welcome,\n" .. shownName .. "!"
+
+	task.spawn(function()
+		local ok, content = pcall(function()
+			return Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		end)
+		if ok and content and content ~= "" then
+			Avatar.Image = content
 		else
-			Tween(MainFrame, {Size = UDim2.new(1,-50,1,-30)})
-			Tween(MinimiseButton, {Rotation = 180})
-			Tween(ContainerShadow, {ImageTransparency = DropShadowTransparency})
+			Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
 		end
 	end)
 
+	-- Menu layout + pixel CanvasSize
+	local MenuListLayout = Instance.new("UIListLayout")
+	MenuListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	MenuListLayout.Padding = UDim.new(0,5)
+	MenuListLayout.Parent = MenuBar
+
+	MenuListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		MenuBar.CanvasSize = UDim2.new(0, 0, 0, MenuListLayout.AbsoluteContentSize.Y + 10)
+	end)
+
+	-- dragging
 	TitleButton.MouseButton1Down:Connect(function()
 		local LastMX, LastMY = Mouse.X, Mouse.Y
 		local MoveConn, EndConn
@@ -336,13 +340,40 @@ end)
 		end)
 	end)
 
-	Level += 1
+	-- collapse state (HARD hide content so NOTHING shows)
+	local EXPANDED_MAIN_SIZE = UDim2.new(1,-50,1,-30)
+	local COLLAPSED_MAIN_SIZE = UDim2.new(1,-50,0,30)
 
-	local MenuListLayout = Instance.new("UIListLayout")
-	MenuListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	MenuListLayout.Padding = UDim.new(0,5)
-	MenuListLayout.Parent = MenuBar
+	local function setCollapsed(isCollapsed)
+		-- Hide/show content regions (this is the real fix)
+		MenuBar.Visible = not isCollapsed
+		DisplayFrame.Visible = not isCollapsed
+		ProfileBar.Visible = not isCollapsed
 
+		-- Also prevent “weird clicks” when collapsed
+		MenuBar.Active = not isCollapsed
+		DisplayFrame.Active = not isCollapsed
+		ProfileBar.Active = not isCollapsed
+
+		-- Tween container
+		if isCollapsed then
+			Tween(MainFrame, {Size = COLLAPSED_MAIN_SIZE})
+			Tween(MinimiseButton, {Rotation = 0})
+			Tween(ContainerShadow, {ImageTransparency = 1})
+		else
+			Tween(MainFrame, {Size = EXPANDED_MAIN_SIZE})
+			Tween(MinimiseButton, {Rotation = 180})
+			Tween(ContainerShadow, {ImageTransparency = DropShadowTransparency})
+		end
+	end
+
+	local MinimiseToggle = true -- true = expanded
+	MinimiseButton.MouseButton1Down:Connect(function()
+		MinimiseToggle = not MinimiseToggle
+		setCollapsed(not MinimiseToggle)
+	end)
+
+	-- pages
 	local TabCount = 0
 	local TabLibrary = {}
 
@@ -355,42 +386,21 @@ end)
 		PageContainer.Size = UDim2.new(1,0,0,20)
 		PageContainer.LayoutOrder = TabCount
 		PageContainer.ImageColor3 = (TabCount == 0) and Color3.fromRGB(50,50,50) or Color3.fromRGB(40,40,40)
+		PageContainer.ZIndex = ZBASE + 2
 		PageContainer.Parent = MenuBar
 
 		local PageButton = TextButton(PageTitle, 14)
 		PageButton.Name = PageTitle.."Button"
 		PageButton.TextTransparency = (TabCount == 0) and 0 or 0.5
+		PageButton.ZIndex = ZBASE + 3
 		PageButton.Parent = PageContainer
-
-		PageButton.MouseButton1Down:Connect(function()
-			task.spawn(function()
-				for _, Button in next, MenuBar:GetChildren() do
-					if Button:IsA("GuiObject") then
-						local isThis = (Button.Name:lower() == PageContainer.Name:lower())
-						local inner = Button:FindFirstChild(Button.Name.."Button")
-						Tween(Button, {ImageColor3 = isThis and Color3.fromRGB(50,50,50) or Color3.fromRGB(40,40,40)})
-						if inner then
-							Tween(inner, {TextTransparency = isThis and 0 or 0.5})
-						end
-					end
-				end
-			end)
-			task.spawn(function()
-				for _, Display in next, DisplayFrame:GetChildren() do
-					if Display:IsA("GuiObject") then
-						Display.Visible = (Display.Name:lower() == PageContainer.Name:lower())
-					end
-				end
-			end)
-		end)
 
 		local DisplayPage = ScrollingFrame()
 		DisplayPage.Visible = (TabCount == 0)
 		DisplayPage.Name = PageTitle
 		DisplayPage.Size = UDim2.new(1,0,1,0)
+		DisplayPage.ZIndex = ZBASE + 2
 		DisplayPage.Parent = DisplayFrame
-
-		TabCount += 1
 
 		local DisplayList = Instance.new("UIListLayout")
 		DisplayList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -398,13 +408,7 @@ end)
 		DisplayList.Parent = DisplayPage
 
 		DisplayList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			local Y1 = DisplayList.AbsoluteContentSize.Y
-			local Y2 = DisplayPage.AbsoluteWindowSize.Y
-			if Y2 <= 0 then
-				DisplayPage.CanvasSize = UDim2.new(0,0,0,0)
-				return
-			end
-			DisplayPage.CanvasSize = UDim2.new(0,0,(Y1/Y2)+0.05,0)
+			DisplayPage.CanvasSize = UDim2.new(0, 0, 0, DisplayList.AbsoluteContentSize.Y + 10)
 		end)
 
 		local DisplayPadding = Instance.new("UIPadding")
@@ -414,11 +418,32 @@ end)
 		DisplayPadding.PaddingRight = UDim.new(0,5)
 		DisplayPadding.Parent = DisplayPage
 
+		PageButton.MouseButton1Down:Connect(function()
+			for _, Button in ipairs(MenuBar:GetChildren()) do
+				if Button:IsA("GuiObject") then
+					local isThis = (Button.Name:lower() == PageContainer.Name:lower())
+					local inner = Button:FindFirstChild(Button.Name.."Button")
+					Tween(Button, {ImageColor3 = isThis and Color3.fromRGB(50,50,50) or Color3.fromRGB(40,40,40)})
+					if inner then
+						Tween(inner, {TextTransparency = isThis and 0 or 0.5})
+					end
+				end
+			end
+			for _, Display in ipairs(DisplayFrame:GetChildren()) do
+				if Display:IsA("GuiObject") then
+					Display.Visible = (Display.Name:lower() == PageContainer.Name:lower())
+				end
+			end
+		end)
+
+		TabCount += 1
+
 		if SearchBarIncluded then
 			local SearchBarContainer = RoundBox(5)
 			SearchBarContainer.Name = "SearchBar"
 			SearchBarContainer.ImageColor3 = Color3.fromRGB(35,35,35)
 			SearchBarContainer.Size = UDim2.new(1,0,0,20)
+			SearchBarContainer.ZIndex = ZBASE + 2
 			SearchBarContainer.Parent = DisplayPage
 
 			local SearchBox = TextBox("Search...")
@@ -427,14 +452,17 @@ end)
 			SearchBox.Size = UDim2.new(1,-20,1,0)
 			SearchBox.TextTransparency = 0.5
 			SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+			SearchBox.ClearTextOnFocus = false
+			SearchBox.ZIndex = ZBASE + 3
 			SearchBox.Parent = SearchBarContainer
 
 			local SearchIconObj = SearchIcon()
+			SearchIconObj.ZIndex = ZBASE + 3
 			SearchIconObj.Parent = SearchBarContainer
 
 			SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
 				local NewValue = SearchBox.Text
-				for _, Element in next, DisplayPage:GetChildren() do
+				for _, Element in ipairs(DisplayPage:GetChildren()) do
 					if Element:IsA("Frame") then
 						if not string.find(Element.Name:lower(), "label") then
 							if NewValue == "" or string.find(Element.Name:lower(), NewValue:lower()) then
@@ -455,12 +483,14 @@ end)
 			ButtonContainer.Name = Text.."BUTTON"
 			ButtonContainer.Size = UDim2.new(1,0,0,20)
 			ButtonContainer.BackgroundTransparency = 1
+			ButtonContainer.ZIndex = ZBASE + 2
 			ButtonContainer.Parent = Parent or DisplayPage
 
 			local ButtonForeground = RoundBox(5)
 			ButtonForeground.Name = "ButtonForeground"
 			ButtonForeground.Size = UDim2.new(1,0,1,0)
 			ButtonForeground.ImageColor3 = Color3.fromRGB(35,35,35)
+			ButtonForeground.ZIndex = ZBASE + 2
 			ButtonForeground.Parent = ButtonContainer
 
 			if Underline then
@@ -470,10 +500,12 @@ end)
 				BottomEffect.Position = UDim2.new(0.5,(-TextSize.X/2)-1,1,-1)
 				BottomEffect.BackgroundColor3 = Color3.fromRGB(255,255,255)
 				BottomEffect.BackgroundTransparency = 0.5
+				BottomEffect.ZIndex = ZBASE + 3
 				BottomEffect.Parent = ButtonForeground
 			end
 
 			local HiddenButton = TextButton(Text, 12)
+			HiddenButton.ZIndex = ZBASE + 3
 			HiddenButton.Parent = ButtonForeground
 
 			HiddenButton.MouseButton1Down:Connect(function()
@@ -491,15 +523,18 @@ end)
 			LabelContainer.Name = Text.."LABEL"
 			LabelContainer.Size = UDim2.new(1,0,0,20)
 			LabelContainer.BackgroundTransparency = 1
+			LabelContainer.ZIndex = ZBASE + 2
 			LabelContainer.Parent = DisplayPage
 
 			local LabelForeground = RoundBox(5)
 			LabelForeground.Name = "LabelForeground"
 			LabelForeground.ImageColor3 = Color3.fromRGB(45,45,45)
 			LabelForeground.Size = UDim2.new(1,0,1,0)
+			LabelForeground.ZIndex = ZBASE + 2
 			LabelForeground.Parent = LabelContainer
 
 			local HiddenLabel = TextLabel(Text, 12)
+			HiddenLabel.ZIndex = ZBASE + 3
 			HiddenLabel.Parent = LabelForeground
 		end
 
@@ -508,12 +543,14 @@ end)
 			BlankContainer.Name = "BlankSPACE"
 			BlankContainer.Size = UDim2.new(1,0,0,20)
 			BlankContainer.BackgroundTransparency = 1
+			BlankContainer.ZIndex = ZBASE + 2
 			BlankContainer.Parent = Parent or DisplayPage
 
 			local BlankForeground = RoundBox(5)
 			BlankForeground.Name = "BlankForeground"
 			BlankForeground.Size = UDim2.new(1,0,1,0)
 			BlankForeground.ImageTransparency = 1
+			BlankForeground.ZIndex = ZBASE + 2
 			BlankForeground.Parent = BlankContainer
 
 			return BlankContainer
@@ -529,19 +566,23 @@ end)
 			DropdownContainer.Size = UDim2.new(1,0,0,20)
 			DropdownContainer.Name = Text.."DROPDOWN"
 			DropdownContainer.BackgroundTransparency = 1
+			DropdownContainer.ZIndex = ZBASE + 2
 			DropdownContainer.Parent = DisplayPage
 
 			local DropdownForeground = RoundBox(5)
 			DropdownForeground.ClipsDescendants = true
 			DropdownForeground.ImageColor3 = Color3.fromRGB(35,35,35)
 			DropdownForeground.Size = UDim2.new(1,0,1,0)
+			DropdownForeground.ZIndex = ZBASE + 2
 			DropdownForeground.Parent = DropdownContainer
 
 			local DropdownExpander = DropdownIcon(true)
+			DropdownExpander.ZIndex = ZBASE + 4
 			DropdownExpander.Parent = DropdownForeground
 
 			local DropdownLabel = TextLabel(Text, 12)
 			DropdownLabel.Size = UDim2.new(1,0,0,20)
+			DropdownLabel.ZIndex = ZBASE + 3
 			DropdownLabel.Parent = DropdownForeground
 
 			local function setLabel()
@@ -557,12 +598,13 @@ end)
 			DropdownFrame.Position = UDim2.new(0,0,0,20)
 			DropdownFrame.BackgroundTransparency = 1
 			DropdownFrame.Size = UDim2.new(1,0,0,#DropdownArray*20)
+			DropdownFrame.ZIndex = ZBASE + 2
 			DropdownFrame.Parent = DropdownForeground
 
 			local DropdownList = Instance.new("UIListLayout")
 			DropdownList.Parent = DropdownFrame
 
-			for OptionIndex, Option in next, DropdownArray do
+			for OptionIndex, Option in ipairs(DropdownArray) do
 				PageLibrary.AddButton(Option, function()
 					Selected = Option
 					setLabel()
@@ -614,23 +656,25 @@ end)
 			SliderContainer.Name = Text.."SLIDER"
 			SliderContainer.Size = UDim2.new(1,0,0,20)
 			SliderContainer.BackgroundTransparency = 1
+			SliderContainer.ZIndex = ZBASE + 2
 			SliderContainer.Parent = Parent or DisplayPage
 
 			local SliderForeground = RoundBox(5)
 			SliderForeground.Name = "SliderForeground"
 			SliderForeground.ImageColor3 = Color3.fromRGB(35,35,35)
 			SliderForeground.Size = UDim2.new(1,0,1,0)
+			SliderForeground.ZIndex = ZBASE + 2
 			SliderForeground.Parent = SliderContainer
 
 			local SliderButton = TextButton(Text..": "..tostring(Default), 12)
 			SliderButton.Size = UDim2.new(1,0,1,0)
-			SliderButton.ZIndex = 6
+			SliderButton.ZIndex = ZBASE + 4
 			SliderButton.Parent = SliderForeground
 
 			local SliderFill = RoundBox(5)
 			SliderFill.Size = UDim2.new(DefaultScale,0,1,0)
 			SliderFill.ImageColor3 = Color3.fromRGB(70,70,70)
-			SliderFill.ZIndex = 5
+			SliderFill.ZIndex = ZBASE + 3
 			SliderFill.ImageTransparency = 0.7
 			SliderFill.Parent = SliderButton
 
@@ -725,6 +769,7 @@ end)
 			PickerContainer.Size = UDim2.new(1,0,0,20)
 			PickerContainer.Name = Text.."COLOURPICKER"
 			PickerContainer.BackgroundTransparency = 1
+			PickerContainer.ZIndex = ZBASE + 2
 			PickerContainer.Parent = DisplayPage
 
 			local ColourTracker = Instance.new("Color3Value")
@@ -735,16 +780,19 @@ end)
 
 			PickerLeftSide.Size = UDim2.new(1,-22,1,0)
 			PickerLeftSide.ImageColor3 = Color3.fromRGB(35,35,35)
+			PickerLeftSide.ZIndex = ZBASE + 2
 			PickerLeftSide.Parent = PickerContainer
 
 			PickerRightSide.Size = UDim2.new(0,20,1,0)
 			PickerRightSide.Position = UDim2.new(1,-20,0,0)
 			PickerRightSide.ImageColor3 = DefaultColour
+			PickerRightSide.ZIndex = ZBASE + 2
 			PickerRightSide.Parent = PickerContainer
 
 			PickerFrame.ImageColor3 = Color3.fromRGB(35,35,35)
 			PickerFrame.Size = UDim2.new(1,-22,0,60)
 			PickerFrame.Position = UDim2.new(0,0,0,20)
+			PickerFrame.ZIndex = ZBASE + 2
 			PickerFrame.Parent = PickerContainer
 
 			local PickerList = Instance.new("UIListLayout")
@@ -780,14 +828,17 @@ end)
 			EffectLeft.BackgroundColor3 = Color3.fromRGB(35,35,35)
 			EffectLeft.Position = UDim2.new(1,-5,0,0)
 			EffectLeft.Size = UDim2.new(0,5,1,0)
+			EffectLeft.ZIndex = ZBASE + 3
 			EffectLeft.Parent = PickerLeftSide
 
 			EffectRight.BackgroundColor3 = DefaultColour
 			EffectRight.Size = UDim2.new(0,5,1,0)
+			EffectRight.ZIndex = ZBASE + 3
 			EffectRight.Parent = PickerRightSide
 
 			local PickerLabel = TextLabel(Text, 12)
 			PickerLabel.Size = UDim2.new(1,0,0,20)
+			PickerLabel.ZIndex = ZBASE + 3
 			PickerLabel.Parent = PickerLeftSide
 
 			ColourTracker:GetPropertyChangedSignal("Value"):Connect(function()
@@ -798,6 +849,7 @@ end)
 
 			local PickerToggle = false
 			local PickerButton = TextButton("", 12)
+			PickerButton.ZIndex = ZBASE + 4
 			PickerButton.Parent = PickerRightSide
 
 			PickerButton.MouseButton1Down:Connect(function()
@@ -842,16 +894,19 @@ end)
 			ButtonContainer.Name = Text.."VALUEBUTTON"
 			ButtonContainer.Size = UDim2.new(1,0,0,20)
 			ButtonContainer.BackgroundTransparency = 1
+			ButtonContainer.ZIndex = ZBASE + 2
 			ButtonContainer.Parent = DisplayPage
 
 			local ButtonForeground = RoundBox(5)
 			ButtonForeground.Name = "ButtonForeground"
 			ButtonForeground.Size = UDim2.new(1,0,1,0)
 			ButtonForeground.ImageColor3 = Color3.fromRGB(35,35,35)
+			ButtonForeground.ZIndex = ZBASE + 2
 			ButtonForeground.Parent = ButtonContainer
 
 			local HiddenButton = TextButton(Text, 12)
 			HiddenButton.Name = "ValueButton"
+			HiddenButton.ZIndex = ZBASE + 3
 			HiddenButton.Parent = ButtonForeground
 
 			local IndicatorHolder = Frame()
@@ -859,6 +914,7 @@ end)
 			IndicatorHolder.BackgroundTransparency = 1
 			IndicatorHolder.Size = UDim2.new(0,20,0,20)
 			IndicatorHolder.Position = UDim2.new(1,-20,0,0)
+			IndicatorHolder.ZIndex = ZBASE + 3
 			IndicatorHolder.Parent = ButtonForeground
 
 			local Indicator = Frame()
@@ -866,6 +922,7 @@ end)
 			Indicator.BorderSizePixel = 0
 			Indicator.Size = UDim2.new(0,12,0,12)
 			Indicator.Position = UDim2.new(0.5,-6,0.5,-6)
+			Indicator.ZIndex = ZBASE + 4
 			Indicator.Parent = IndicatorHolder
 
 			local IndicatorCorner = Instance.new("UICorner")
@@ -932,40 +989,49 @@ end)
 			ToggleContainer.Name = Text.."TOGGLE"
 			ToggleContainer.Size = UDim2.new(1,0,0,20)
 			ToggleContainer.BackgroundTransparency = 1
+			ToggleContainer.ZIndex = ZBASE + 2
 			ToggleContainer.Parent = DisplayPage
 
 			local ToggleLeftSide, ToggleRightSide, EffectFrame, RightTick = RoundBox(5), RoundBox(5), Frame(), TickIcon()
-			local FlatLeft, FlatRight = Frame(), Frame()
 
 			ToggleLeftSide.Size = UDim2.new(1,-22,1,0)
 			ToggleLeftSide.ImageColor3 = Color3.fromRGB(35,35,35)
+			ToggleLeftSide.ZIndex = ZBASE + 2
 			ToggleLeftSide.Parent = ToggleContainer
 
 			ToggleRightSide.Position = UDim2.new(1,-20,0,0)
 			ToggleRightSide.Size = UDim2.new(0,20,1,0)
 			ToggleRightSide.ImageColor3 = Color3.fromRGB(45,45,45)
+			ToggleRightSide.ZIndex = ZBASE + 2
 			ToggleRightSide.Parent = ToggleContainer
 
+			local FlatLeft = Frame()
 			FlatLeft.BackgroundColor3 = Color3.fromRGB(35,35,35)
 			FlatLeft.Size = UDim2.new(0,5,1,0)
 			FlatLeft.Position = UDim2.new(1,-5,0,0)
+			FlatLeft.ZIndex = ZBASE + 3
 			FlatLeft.Parent = ToggleLeftSide
 
+			local FlatRight = Frame()
 			FlatRight.BackgroundColor3 = Color3.fromRGB(45,45,45)
 			FlatRight.Size = UDim2.new(0,5,1,0)
+			FlatRight.ZIndex = ZBASE + 3
 			FlatRight.Parent = ToggleRightSide
 
 			EffectFrame.BackgroundColor3 = ThisToggle and Color3.fromRGB(0,255,109) or Color3.fromRGB(255,160,160)
 			EffectFrame.Position = UDim2.new(1,-22,0.2,0)
 			EffectFrame.Size = UDim2.new(0,2,0.6,0)
+			EffectFrame.ZIndex = ZBASE + 3
 			EffectFrame.Parent = ToggleContainer
 
 			RightTick.ImageTransparency = ThisToggle and 0 or 1
+			RightTick.ZIndex = ZBASE + 4
 			RightTick.Parent = ToggleRightSide
 
 			local ToggleButton = TextButton(Text, 12)
 			ToggleButton.Name = "ToggleButton"
 			ToggleButton.Size = UDim2.new(1,0,1,0)
+			ToggleButton.ZIndex = ZBASE + 4
 			ToggleButton.Parent = ToggleLeftSide
 
 			local function Apply(NewValue, fireCallbacks)
@@ -1000,11 +1066,15 @@ end)
 		return PageLibrary
 	end
 
+	-- start expanded by default
+	-- (if you want it to start collapsed, call setCollapsed(true) here)
+	-- setCollapsed(false)
+
 	return TabLibrary
 end
 
 --// ========================
---// NOTIFY (single, clean) - FIXED slide with UIListLayout
+--// NOTIFY (single, clean) - uses loaded gui ref
 --// ========================
 function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Title = tostring(Title or "Notification")
@@ -1012,29 +1082,9 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Duration = tonumber(Duration) or 3
 	LogoImage = LogoImage or "rbxthumb://type=Asset&id=6845502547&w=150&h=150"
 
-	local function findLoadedGui()
-		local function scan(parent)
-			for _, g in ipairs(parent:GetChildren()) do
-				if g:IsA("ScreenGui") then
-					local cf = g:FindFirstChild("ContainerFrame")
-					if cf and cf:FindFirstChild("MainFrame") then
-						local mf = cf.MainFrame
-						if mf:FindFirstChild("TitleBar") and mf:FindFirstChild("Display") and mf:FindFirstChild("MenuBar") then
-							return g
-						end
-					end
-				end
-			end
-			return nil
-		end
-
-		local pg = Player and (Player:FindFirstChildOfClass("PlayerGui") or Player:WaitForChild("PlayerGui"))
-		return scan(CoreGuiService) or (pg and scan(pg)) or nil
-	end
-
-	local Gui = findLoadedGui()
-	if not Gui then
-		warn("UILibrary.Notify: couldn't find loaded UI (call after UILibrary.Load).")
+	local Gui = UILibrary.__loadedGui
+	if not Gui or not Gui.Parent then
+		warn("UILibrary.Notify: UI not loaded (call after UILibrary.Load).")
 		return
 	end
 
@@ -1056,7 +1106,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 		List.Parent = Holder
 	end
 
-	-- Toast is layout-managed (DO NOT tween its Position). Instead tween an inner Slide frame.
 	local Toast = Instance.new("Frame")
 	Toast.Name = "Toast"
 	Toast.BackgroundTransparency = 1
@@ -1068,7 +1117,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Slide.Name = "Slide"
 	Slide.BackgroundTransparency = 1
 	Slide.Size = UDim2.new(1, 0, 1, 0)
-	Slide.Position = UDim2.new(1, 300, 0, 0) -- off to the right (inside Toast)
+	Slide.Position = UDim2.new(1, 300, 0, 0)
 	Slide.ZIndex = 9999
 	Slide.Parent = Toast
 
@@ -1162,7 +1211,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarFillCorner.CornerRadius = UDim.new(0, 6)
 	BarFillCorner.Parent = BarFill
 
-	-- fade in
 	Card.BackgroundTransparency = 1
 	TitleBar.BackgroundTransparency = 1
 	Logo.ImageTransparency = 1
@@ -1180,7 +1228,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	TweenService:Create(BarBack, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(BarFill, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 
-	-- rgb stroke
 	local start = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
@@ -1193,10 +1240,8 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 		Stroke.Color = Color3.fromHSV(hue, 1, 1)
 	end)
 
-	-- progress
 	TweenService:Create(BarFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
 
-	-- out
 	task.delay(Duration, function()
 		if not Toast or not Toast.Parent then
 			if conn then conn:Disconnect() end
