@@ -1,386 +1,195 @@
 --// ========================
---// WetHub UI Library (Fixed + ValueButton + CONFIG SYSTEM) - FIXED BUILD
---// - Config registry + Save/Load via writefile/readfile (JSON)
---// - Missing keys auto-add (toggles -> false, others -> __Default)
---// - Handles returned for Toggle/Slider/Dropdown/ColourPicker/ValueButton
---// - IMPORTANT: This file RETURNS UILibrary and contains ONLY ONE Notify() implementation.
+--// WetHub UI Library (FIXED + CONFIG-READY HANDLES)
+--// - NO FILE FUNCTIONS (safe on executors with no writefile/readfile)
+--// - Adds handles: Toggle/Slider/Dropdown/ColourPicker -> Get/Set/Destroy
+--// - Adds ProfileBar (avatar + welcome) under tabs
+--// - Fixes: ColourPicker order, Search empty restore, Tab matching, collapse hiding ProfileBar
+--// - Includes Notify() (UIListLayout-safe slide)
 --// ========================
 
---// services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGuiService = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
-local HttpService = game:GetService("HttpService")
 
---// locals
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 
 local TweenTime = 0.1
-local Level = 1
 local GlobalTweenInfo = TweenInfo.new(TweenTime)
 
 local DropShadowID = "rbxassetid://297774371"
 local DropShadowTransparency = 0.3
 
-local IconLibraryID = "rbxassetid://3926305904"
+local IconLibraryID  = "rbxassetid://3926305904"
 local IconLibraryID2 = "rbxassetid://3926307971"
+
 local MainFont = Enum.Font.Gotham
 
---// ========================
---// UILibrary + CONFIG REGISTRY
---// ========================
-local UILibrary = {}
-UILibrary.__Registry = {}
-UILibrary.__ConfigFolder = "WetHubConfigs"
-UILibrary.__ConfigExt = ".json"
-UILibrary.__ConfigVersion = 1
-
---// ---------- config helpers ----------
-local function _sanitizeKey(s)
-	s = tostring(s or "")
-	s = s:gsub("[%c\r\n\t]", " ")
-	s = s:gsub("%s+", " ")
-	s = s:gsub("[^%w%s%-%_%.%[%]%(%)%#%&:]", "")
-	s = s:sub(1, 140)
-	if s == "" then s = "Unnamed" end
-	return s
+--// ===== helpers =====
+local function clamp(n, a, b)
+	n = tonumber(n) or 0
+	if n < a then return a end
+	if n > b then return b end
+	return n
 end
 
-local function _makeKey(pageTitle, kind, text)
-	return _sanitizeKey(pageTitle) .. " :: " .. _sanitizeKey(kind) .. " :: " .. _sanitizeKey(text)
-end
-
-local function _register(key, handle)
-	UILibrary.__Registry[key] = handle
-end
-
-local function _ensureFolder()
-	if typeof(makefolder) == "function" then
-		if typeof(isfolder) == "function" then
-			if not isfolder(UILibrary.__ConfigFolder) then
-				makefolder(UILibrary.__ConfigFolder)
-			end
-		else
-			pcall(function()
-				makefolder(UILibrary.__ConfigFolder)
-			end)
-		end
-	end
-end
-
-local function _cfgPath(name)
-	name = _sanitizeKey(name)
-	if name == "" then name = "default" end
-	return UILibrary.__ConfigFolder .. "/" .. name .. UILibrary.__ConfigExt
-end
-
-function UILibrary.GetConfigTable()
-	local out = {
-		Version = UILibrary.__ConfigVersion,
-		SavedAt = os.time(),
-		Values = {}
-	}
-
-	for key, handle in pairs(UILibrary.__Registry) do
-		if handle and typeof(handle.Get) == "function" then
-			local ok, val = pcall(function()
-				return handle:Get()
-			end)
-			if ok then
-				out.Values[key] = val
-			end
-		end
-	end
-
-	return out
-end
-
-function UILibrary.ApplyConfigTable(cfg, fireCallbacks)
-	fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-
-	if typeof(cfg) ~= "table" or typeof(cfg.Values) ~= "table" then
-		return false
-	end
-
-	for key, val in pairs(cfg.Values) do
-		local handle = UILibrary.__Registry[key]
-		if handle and typeof(handle.Set) == "function" then
-			pcall(function()
-				handle:Set(val, fireCallbacks)
-			end)
-		end
-	end
-
-	return true
-end
-
-function UILibrary.WriteConfig(name)
-	if typeof(writefile) ~= "function" then
-		warn("UILibrary.WriteConfig: writefile() not available in this executor.")
-		return false
-	end
-
-	_ensureFolder()
-
-	local cfg = UILibrary.GetConfigTable()
-	local json = HttpService:JSONEncode(cfg)
-	writefile(_cfgPath(name), json)
-	return true
-end
-
--- opts:
---  fireCallbacks (default true)
---  autofillMissing (default true)
---  saveIfPatched (default true)
-function UILibrary.ReadAndApplyConfig(name, opts)
-	opts = opts or {}
-
-	local fireCallbacks = (opts.fireCallbacks == nil) and true or (opts.fireCallbacks == true)
-	local autofillMissing = (opts.autofillMissing == nil) and true or (opts.autofillMissing == true)
-	local saveIfPatched = (opts.saveIfPatched == nil) and true or (opts.saveIfPatched == true)
-
-	if typeof(readfile) ~= "function" then
-		warn("UILibrary.ReadAndApplyConfig: readfile() not available in this executor.")
-		return false
-	end
-
-	local path = _cfgPath(name)
-
-	if typeof(isfile) == "function" and not isfile(path) then
-		warn("UILibrary.ReadAndApplyConfig: config not found: " .. path)
-		return false
-	end
-
-	local raw = readfile(path)
-
-	local ok, cfg = pcall(function()
-		return HttpService:JSONDecode(raw)
-	end)
-
-	if not ok or typeof(cfg) ~= "table" then
-		warn("UILibrary.ReadAndApplyConfig: invalid config JSON.")
-		return false
-	end
-
-	cfg.Values = cfg.Values or {}
-
-	-- Patch missing keys for new UI elements (rule: toggles -> false)
-	local patched = false
-	if autofillMissing then
-		for key, handle in pairs(UILibrary.__Registry) do
-			if cfg.Values[key] == nil then
-				local defaultValue
-				if handle and handle.__Type == "Toggle" then
-					defaultValue = false
-				elseif handle and handle.__Default ~= nil then
-					defaultValue = handle.__Default
-				else
-					defaultValue = false
-				end
-				cfg.Values[key] = defaultValue
-				patched = true
-			end
-		end
-	end
-
-	UILibrary.ApplyConfigTable(cfg, fireCallbacks)
-
-	if patched and saveIfPatched and typeof(writefile) == "function" then
-		_ensureFolder()
-		writefile(path, HttpService:JSONEncode(cfg))
-	end
-
-	return true
-end
-
-function UILibrary.ListConfigs()
-	if typeof(listfiles) ~= "function" then
-		return {}
-	end
-
-	_ensureFolder()
-
-	local files = listfiles(UILibrary.__ConfigFolder)
-	local out = {}
-
-	for _, f in ipairs(files) do
-		local name = tostring(f):match("([^/\\]+)%" .. UILibrary.__ConfigExt .. "$")
-		if name then
-			table.insert(out, name)
-		end
-	end
-
-	table.sort(out)
-	return out
-end
-
---// ========================
---// UI HELPERS
---// ========================
 local function GetXY(GuiObject)
-	local X, Y = Mouse.X - GuiObject.AbsolutePosition.X, Mouse.Y - GuiObject.AbsolutePosition.Y
-	local MaxX, MaxY = GuiObject.AbsoluteSize.X, GuiObject.AbsoluteSize.Y
+	local X = Mouse.X - GuiObject.AbsolutePosition.X
+	local Y = Mouse.Y - GuiObject.AbsolutePosition.Y
+	local MaxX = GuiObject.AbsoluteSize.X
+	local MaxY = GuiObject.AbsoluteSize.Y
 	X, Y = math.clamp(X, 0, MaxX), math.clamp(Y, 0, MaxY)
-	return X, Y, X / MaxX, Y / MaxY
+	return X, Y, (MaxX == 0 and 0 or (X / MaxX)), (MaxY == 0 and 0 or (Y / MaxY))
 end
 
-local function TitleIcon(ButtonOrNot)
-	local NewTitleIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
-	NewTitleIcon.Name = "TitleIcon"
-	NewTitleIcon.BackgroundTransparency = 1
-	NewTitleIcon.Image = IconLibraryID
-	NewTitleIcon.ImageRectOffset = Vector2.new(524, 764)
-	NewTitleIcon.ImageRectSize = Vector2.new(36, 36)
-	NewTitleIcon.Size = UDim2.new(0, 14, 0, 14)
-	NewTitleIcon.Position = UDim2.new(1, -17, 0, 3)
-	NewTitleIcon.Rotation = 180
-	NewTitleIcon.ZIndex = Level
-	return NewTitleIcon
+local function Tween(obj, props)
+	local tw = TweenService:Create(obj, GlobalTweenInfo, props)
+	tw:Play()
+	return tw
 end
 
-local function TickIcon(ButtonOrNot)
-	local NewTickIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
-	NewTickIcon.Name = "TickIcon"
-	NewTickIcon.BackgroundTransparency = 1
-	NewTickIcon.Image = "rbxassetid://3926305904"
-	NewTickIcon.ImageRectOffset = Vector2.new(312, 4)
-	NewTickIcon.ImageRectSize = Vector2.new(24, 24)
-	NewTickIcon.Size = UDim2.new(1, -6, 1, -6)
-	NewTickIcon.Position = UDim2.new(0, 3, 0, 3)
-	NewTickIcon.ZIndex = Level
-	return NewTickIcon
+--// ===== UI factories =====
+local function TitleIcon(isButton)
+	local ico = Instance.new(isButton and "ImageButton" or "ImageLabel")
+	ico.Name = "TitleIcon"
+	ico.BackgroundTransparency = 1
+	ico.Image = IconLibraryID
+	ico.ImageRectOffset = Vector2.new(524, 764)
+	ico.ImageRectSize = Vector2.new(36, 36)
+	ico.Size = UDim2.new(0, 14, 0, 14)
+	ico.Position = UDim2.new(1, -17, 0, 3)
+	ico.Rotation = 180
+	return ico
 end
 
-local function DropdownIcon(ButtonOrNot)
-	local NewDropdownIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
-	NewDropdownIcon.Name = "DropdownIcon"
-	NewDropdownIcon.BackgroundTransparency = 1
-	NewDropdownIcon.Image = IconLibraryID2
-	NewDropdownIcon.ImageRectOffset = Vector2.new(324, 364)
-	NewDropdownIcon.ImageRectSize = Vector2.new(36, 36)
-	NewDropdownIcon.Size = UDim2.new(0, 16, 0, 16)
-	NewDropdownIcon.Position = UDim2.new(1, -18, 0, 2)
-	NewDropdownIcon.ZIndex = Level
-	return NewDropdownIcon
+local function TickIcon(isButton)
+	local ico = Instance.new(isButton and "ImageButton" or "ImageLabel")
+	ico.Name = "TickIcon"
+	ico.BackgroundTransparency = 1
+	ico.Image = "rbxassetid://3926305904"
+	ico.ImageRectOffset = Vector2.new(312, 4)
+	ico.ImageRectSize = Vector2.new(24, 24)
+	ico.Size = UDim2.new(1, -6, 1, -6)
+	ico.Position = UDim2.new(0, 3, 0, 3)
+	return ico
 end
 
-local function SearchIcon(ButtonOrNot)
-	local NewSearchIcon = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
-	NewSearchIcon.Name = "SearchIcon"
-	NewSearchIcon.BackgroundTransparency = 1
-	NewSearchIcon.Image = IconLibraryID
-	NewSearchIcon.ImageRectOffset = Vector2.new(964, 324)
-	NewSearchIcon.ImageRectSize = Vector2.new(36, 36)
-	NewSearchIcon.Size = UDim2.new(0, 16, 0, 16)
-	NewSearchIcon.Position = UDim2.new(0, 2, 0, 2)
-	NewSearchIcon.ZIndex = Level
-	return NewSearchIcon
+local function DropdownIcon(isButton)
+	local ico = Instance.new(isButton and "ImageButton" or "ImageLabel")
+	ico.Name = "DropdownIcon"
+	ico.BackgroundTransparency = 1
+	ico.Image = IconLibraryID2
+	ico.ImageRectOffset = Vector2.new(324, 364)
+	ico.ImageRectSize = Vector2.new(36, 36)
+	ico.Size = UDim2.new(0, 16, 0, 16)
+	ico.Position = UDim2.new(1, -18, 0, 2)
+	return ico
 end
 
-local function RoundBox(CornerRadius, ButtonOrNot)
-	local NewRoundBox = Instance.new(ButtonOrNot and "ImageButton" or "ImageLabel")
-	NewRoundBox.BackgroundTransparency = 1
-	NewRoundBox.Image = "rbxassetid://3570695787"
-	NewRoundBox.SliceCenter = Rect.new(100, 100, 100, 100)
-	NewRoundBox.SliceScale = math.clamp((CornerRadius or 5) * 0.01, 0.01, 1)
-	NewRoundBox.ScaleType = Enum.ScaleType.Slice
-	NewRoundBox.ZIndex = Level
-	return NewRoundBox
+local function SearchIcon(isButton)
+	local ico = Instance.new(isButton and "ImageButton" or "ImageLabel")
+	ico.Name = "SearchIcon"
+	ico.BackgroundTransparency = 1
+	ico.Image = IconLibraryID
+	ico.ImageRectOffset = Vector2.new(964, 324)
+	ico.ImageRectSize = Vector2.new(36, 36)
+	ico.Size = UDim2.new(0, 16, 0, 16)
+	ico.Position = UDim2.new(0, 2, 0, 2)
+	return ico
+end
+
+local function RoundBox(cornerRadius, isButton)
+	local img = Instance.new(isButton and "ImageButton" or "ImageLabel")
+	img.BackgroundTransparency = 1
+	img.Image = "rbxassetid://3570695787"
+	img.SliceCenter = Rect.new(100, 100, 100, 100)
+	img.SliceScale = math.clamp((cornerRadius or 5) * 0.01, 0.01, 1)
+	img.ScaleType = Enum.ScaleType.Slice
+	return img
 end
 
 local function DropShadow()
-	local NewDropShadow = Instance.new("ImageLabel")
-	NewDropShadow.Name = "DropShadow"
-	NewDropShadow.BackgroundTransparency = 1
-	NewDropShadow.Image = DropShadowID
-	NewDropShadow.ImageTransparency = DropShadowTransparency
-	NewDropShadow.Size = UDim2.new(1, 0, 1, 0)
-	NewDropShadow.ZIndex = Level
-	return NewDropShadow
+	local sh = Instance.new("ImageLabel")
+	sh.Name = "DropShadow"
+	sh.BackgroundTransparency = 1
+	sh.Image = DropShadowID
+	sh.ImageTransparency = DropShadowTransparency
+	sh.Size = UDim2.new(1, 0, 1, 0)
+	return sh
 end
 
 local function Frame()
-	local NewFrame = Instance.new("Frame")
-	NewFrame.BorderSizePixel = 0
-	NewFrame.ZIndex = Level
-	return NewFrame
+	local f = Instance.new("Frame")
+	f.BorderSizePixel = 0
+	return f
 end
 
 local function ScrollingFrame()
-	local NewScrollingFrame = Instance.new("ScrollingFrame")
-	NewScrollingFrame.BackgroundTransparency = 1
-	NewScrollingFrame.BorderSizePixel = 0
-	NewScrollingFrame.ScrollBarThickness = 0
-	NewScrollingFrame.ZIndex = Level
-	return NewScrollingFrame
+	local sf = Instance.new("ScrollingFrame")
+	sf.BackgroundTransparency = 1
+	sf.BorderSizePixel = 0
+	sf.ScrollBarThickness = 0
+	return sf
 end
 
-local function TextButton(Text, Size)
-	local NewTextButton = Instance.new("TextButton")
-	NewTextButton.Text = Text
-	NewTextButton.AutoButtonColor = false
-	NewTextButton.Font = MainFont
-	NewTextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	NewTextButton.BackgroundTransparency = 1
-	NewTextButton.TextSize = Size or 12
-	NewTextButton.Size = UDim2.new(1, 0, 1, 0)
-	NewTextButton.ZIndex = Level
-	return NewTextButton
+local function TextButton(text, size)
+	local b = Instance.new("TextButton")
+	b.Text = tostring(text or "")
+	b.AutoButtonColor = false
+	b.Font = MainFont
+	b.TextColor3 = Color3.fromRGB(255, 255, 255)
+	b.BackgroundTransparency = 1
+	b.TextSize = size or 12
+	b.Size = UDim2.new(1, 0, 1, 0)
+	return b
 end
 
-local function TextBox(Text, Size)
-	local NewTextBox = Instance.new("TextBox")
-	NewTextBox.Text = Text
-	NewTextBox.Font = MainFont
-	NewTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-	NewTextBox.BackgroundTransparency = 1
-	NewTextBox.TextSize = Size or 12
-	NewTextBox.Size = UDim2.new(1, 0, 1, 0)
-	NewTextBox.ZIndex = Level
-	return NewTextBox
+local function TextBox(text, size)
+	local t = Instance.new("TextBox")
+	t.Text = tostring(text or "")
+	t.Font = MainFont
+	t.TextColor3 = Color3.fromRGB(255, 255, 255)
+	t.BackgroundTransparency = 1
+	t.TextSize = size or 12
+	t.Size = UDim2.new(1, 0, 1, 0)
+	return t
 end
 
-local function TextLabel(Text, Size)
-	local NewTextLabel = Instance.new("TextLabel")
-	NewTextLabel.Text = Text
-	NewTextLabel.Font = MainFont
-	NewTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	NewTextLabel.BackgroundTransparency = 1
-	NewTextLabel.TextSize = Size or 12
-	NewTextLabel.Size = UDim2.new(1, 0, 1, 0)
-	NewTextLabel.ZIndex = Level
-	return NewTextLabel
+local function TextLabel(text, size)
+	local l = Instance.new("TextLabel")
+	l.Text = tostring(text or "")
+	l.Font = MainFont
+	l.TextColor3 = Color3.fromRGB(255, 255, 255)
+	l.BackgroundTransparency = 1
+	l.TextSize = size or 12
+	l.Size = UDim2.new(1, 0, 1, 0)
+	return l
 end
 
-local function Tween(GuiObject, Dictionary)
-	local TweenBase = TweenService:Create(GuiObject, GlobalTweenInfo, Dictionary)
-	TweenBase:Play()
-	return TweenBase
-end
+--// ============================================================
+--// UILibrary
+--// ============================================================
+local UILibrary = {}
 
---// ========================
---// MAIN LOAD (UI)
---// ========================
 function UILibrary.Load(GUITitle)
-	-- choose parent
+	GUITitle = tostring(GUITitle or "WetHub")
+
 	local TargetedParent = RunService:IsStudio() and Player:WaitForChild("PlayerGui") or CoreGuiService
 
-	-- cleanup old
-	local FindOldInstance = TargetedParent:FindFirstChild(GUITitle)
-	if FindOldInstance then
-		FindOldInstance:Destroy()
-	end
+	local old = TargetedParent:FindFirstChild(GUITitle)
+	if old then old:Destroy() end
 
-	-- create screen
+	-- Root GUI
 	local NewInstance = Instance.new("ScreenGui")
 	NewInstance.Name = GUITitle
+	NewInstance.ResetOnSpawn = false
+	NewInstance.IgnoreGuiInset = false
 	NewInstance.Parent = TargetedParent
 
-	-- container
+	-- Container
 	local ContainerFrame = Frame()
 	ContainerFrame.Name = "ContainerFrame"
 	ContainerFrame.Size = UDim2.new(0, 500, 0, 300)
@@ -388,35 +197,48 @@ function UILibrary.Load(GUITitle)
 	ContainerFrame.BackgroundTransparency = 1
 	ContainerFrame.Parent = NewInstance
 
-	-- shadow
 	local ContainerShadow = DropShadow()
 	ContainerShadow.Name = "Shadow"
 	ContainerShadow.Parent = ContainerFrame
 
-	Level += 1
-
-	-- main card
+	-- Main frame
 	local MainFrame = RoundBox(5)
-	MainFrame.ClipsDescendants = true
 	MainFrame.Name = "MainFrame"
+	MainFrame.ClipsDescendants = true
 	MainFrame.Size = UDim2.new(1, -50, 1, -30)
 	MainFrame.Position = UDim2.new(0, 25, 0, 15)
 	MainFrame.ImageColor3 = Color3.fromRGB(30, 30, 30)
 	MainFrame.Parent = ContainerFrame
 
-	-- left tabs
+	-- Title bar
+	local TitleBar = RoundBox(5)
+	TitleBar.Name = "TitleBar"
+	TitleBar.ImageColor3 = Color3.fromRGB(40, 40, 40)
+	TitleBar.Size = UDim2.new(1, -10, 0, 20)
+	TitleBar.Position = UDim2.new(0, 5, 0, 5)
+	TitleBar.Parent = MainFrame
+
+	-- Menu + Display
 	local MenuBar = ScrollingFrame()
 	MenuBar.Name = "MenuBar"
 	MenuBar.BackgroundTransparency = 0.7
 	MenuBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	MenuBar.Size = UDim2.new(0, 100, 0, 235)
 	MenuBar.Position = UDim2.new(0, 5, 0, 30)
+	MenuBar.Size = UDim2.new(0, 100, 0, 235)
 	MenuBar.CanvasSize = UDim2.new(0, 0, 0, 0)
 	MenuBar.Parent = MainFrame
 
-	-- profile bar under tabs
+	local DisplayFrame = RoundBox(5)
+	DisplayFrame.Name = "Display"
+	DisplayFrame.ImageColor3 = Color3.fromRGB(20, 20, 20)
+	DisplayFrame.Position = UDim2.new(0, 110, 0, 30)
+	DisplayFrame.Size = UDim2.new(1, -115, 0, 235)
+	DisplayFrame.Parent = MainFrame
+
+	-- Profile bar under tabs
 	local ProfileBarHeight = 40
 	local ProfileBarPadding = 5
+
 	MenuBar.Size = UDim2.new(0, 100, 0, 235 - ProfileBarHeight - ProfileBarPadding)
 
 	local ProfileBar = RoundBox(5)
@@ -424,23 +246,22 @@ function UILibrary.Load(GUITitle)
 	ProfileBar.ImageColor3 = Color3.fromRGB(40, 40, 40)
 	ProfileBar.Size = UDim2.new(0, 100, 0, ProfileBarHeight)
 	ProfileBar.Position = UDim2.new(0, 5, 1, -(ProfileBarHeight + ProfileBarPadding))
-	ProfileBar.ZIndex = Level + 1
 	ProfileBar.Parent = MainFrame
 	ProfileBar.ClipsDescendants = true
 
 	local Avatar = Instance.new("ImageLabel")
+	Avatar.Name = "Avatar"
 	Avatar.BackgroundTransparency = 1
 	Avatar.Size = UDim2.new(0, 28, 0, 28)
 	Avatar.Position = UDim2.new(0, 6, 0.5, -14)
-	Avatar.ZIndex = ProfileBar.ZIndex + 1
 	Avatar.Parent = ProfileBar
-	Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
 
 	local AvatarCorner = Instance.new("UICorner")
 	AvatarCorner.CornerRadius = UDim.new(1, 0)
 	AvatarCorner.Parent = Avatar
 
 	local Welcome = Instance.new("TextLabel")
+	Welcome.Name = "Welcome"
 	Welcome.BackgroundTransparency = 1
 	Welcome.TextXAlignment = Enum.TextXAlignment.Left
 	Welcome.TextYAlignment = Enum.TextYAlignment.Center
@@ -451,31 +272,23 @@ function UILibrary.Load(GUITitle)
 	Welcome.TextWrapped = true
 	Welcome.Size = UDim2.new(1, -40, 1, 0)
 	Welcome.Position = UDim2.new(0, 36, 0, 0)
-	Welcome.ZIndex = ProfileBar.ZIndex + 1
 	Welcome.Parent = ProfileBar
 
 	local shownName = (Player.DisplayName and Player.DisplayName ~= "" and Player.DisplayName) or Player.Name
 	Welcome.Text = "Welcome,\n" .. shownName .. "!"
 
-	-- display panel
-	local DisplayFrame = RoundBox(5)
-	DisplayFrame.Name = "Display"
-	DisplayFrame.ImageColor3 = Color3.fromRGB(20, 20, 20)
-	DisplayFrame.Size = UDim2.new(1, -115, 0, 235)
-	DisplayFrame.Position = UDim2.new(0, 110, 0, 30)
-	DisplayFrame.Parent = MainFrame
+	task.spawn(function()
+		local ok, content = pcall(function()
+			return Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		end)
+		if ok and content and content ~= "" then
+			Avatar.Image = content
+		else
+			Avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(Player.UserId)
+		end
+	end)
 
-	-- top bar
-	local TitleBar = RoundBox(5)
-	TitleBar.Name = "TitleBar"
-	TitleBar.ImageColor3 = Color3.fromRGB(40, 40, 40)
-	TitleBar.Size = UDim2.new(1, -10, 0, 20)
-	TitleBar.Position = UDim2.new(0, 5, 0, 5)
-	TitleBar.Parent = MainFrame
-	TitleBar.ClipsDescendants = false
-
-	Level += 1
-
+	-- Title controls
 	local MinimiseButton = TitleIcon(true)
 	MinimiseButton.Name = "Minimise"
 	MinimiseButton.Parent = TitleBar
@@ -486,26 +299,10 @@ function UILibrary.Load(GUITitle)
 	TitleButton.Size = UDim2.new(1, -44, 1, 0)
 	TitleButton.Parent = TitleBar
 
-	-- minimise
-	local MinimiseToggle = true
-	MinimiseButton.MouseButton1Down:Connect(function()
-		MinimiseToggle = not MinimiseToggle
-		if not MinimiseToggle then
-			Tween(MainFrame, { Size = UDim2.new(1, -50, 0, 30) })
-			Tween(MinimiseButton, { Rotation = 0 })
-			Tween(ContainerShadow, { ImageTransparency = 1 })
-		else
-			Tween(MainFrame, { Size = UDim2.new(1, -50, 1, -30) })
-			Tween(MinimiseButton, { Rotation = 180 })
-			Tween(ContainerShadow, { ImageTransparency = DropShadowTransparency })
-		end
-	end)
-
-	-- drag
+	-- Dragging
 	TitleButton.MouseButton1Down:Connect(function()
 		local LastMX, LastMY = Mouse.X, Mouse.Y
-		local MoveConn
-		local EndConn
+		local MoveConn, EndConn
 
 		MoveConn = Mouse.Move:Connect(function()
 			local NewMX, NewMY = Mouse.X, Mouse.Y
@@ -522,23 +319,71 @@ function UILibrary.Load(GUITitle)
 		end)
 	end)
 
-	Level += 1
+	-- Collapse behavior
+	local MinimiseToggle = true
+	local function applyCollapsedState()
+		if not MinimiseToggle then
+			-- collapsed
+			Tween(MainFrame, {Size = UDim2.new(1, -50, 0, 30)})
+			Tween(MinimiseButton, {Rotation = 0})
+			Tween(ContainerShadow, {ImageTransparency = 1})
 
-	-- menu layout
+			-- hard-hide everything that could peek (your avatar issue)
+			MenuBar.Visible = false
+			DisplayFrame.Visible = false
+			ProfileBar.Visible = false
+		else
+			-- expanded
+			Tween(MainFrame, {Size = UDim2.new(1, -50, 1, -30)})
+			Tween(MinimiseButton, {Rotation = 180})
+			Tween(ContainerShadow, {ImageTransparency = DropShadowTransparency})
+
+			MenuBar.Visible = true
+			DisplayFrame.Visible = true
+			ProfileBar.Visible = true
+		end
+	end
+
+	MinimiseButton.MouseButton1Down:Connect(function()
+		MinimiseToggle = not MinimiseToggle
+		applyCollapsedState()
+	end)
+
+	-- Menu layout
 	local MenuListLayout = Instance.new("UIListLayout")
 	MenuListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	MenuListLayout.Padding = UDim.new(0, 5)
 	MenuListLayout.Parent = MenuBar
 
-	-- tab system
+	-- Tabs
 	local TabCount = 0
 	local TabLibrary = {}
 
-	function TabLibrary.AddPage(PageTitle, SearchBarIncluded)
-		SearchBarIncluded = (SearchBarIncluded == nil) and true or SearchBarIncluded
-		local __PageTitle = PageTitle
+	local function setActiveTab(tabNameLower)
+		-- Menu highlighting
+		for _, Button in ipairs(MenuBar:GetChildren()) do
+			if Button:IsA("GuiObject") then
+				local isThis = (Button.Name:lower() == tabNameLower)
+				local inner = Button:FindFirstChild(Button.Name .. "Button")
+				Tween(Button, {ImageColor3 = isThis and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)})
+				if inner and inner:IsA("TextButton") then
+					Tween(inner, {TextTransparency = isThis and 0 or 0.5})
+				end
+			end
+		end
 
-		-- tab button
+		-- Page visibility
+		for _, Display in ipairs(DisplayFrame:GetChildren()) do
+			if Display:IsA("GuiObject") then
+				Display.Visible = (Display.Name:lower() == tabNameLower)
+			end
+		end
+	end
+
+	function TabLibrary.AddPage(PageTitle, SearchBarIncluded)
+		PageTitle = tostring(PageTitle or ("Page" .. tostring(TabCount + 1)))
+		SearchBarIncluded = (SearchBarIncluded == nil) and true or (SearchBarIncluded == true)
+
 		local PageContainer = RoundBox(5)
 		PageContainer.Name = PageTitle
 		PageContainer.Size = UDim2.new(1, 0, 0, 20)
@@ -551,40 +396,18 @@ function UILibrary.Load(GUITitle)
 		PageButton.TextTransparency = (TabCount == 0) and 0 or 0.5
 		PageButton.Parent = PageContainer
 
-		-- page frame
+		PageButton.MouseButton1Down:Connect(function()
+			setActiveTab(PageContainer.Name:lower())
+		end)
+
 		local DisplayPage = ScrollingFrame()
 		DisplayPage.Visible = (TabCount == 0)
 		DisplayPage.Name = PageTitle
 		DisplayPage.Size = UDim2.new(1, 0, 1, 0)
 		DisplayPage.Parent = DisplayFrame
 
-		-- switch
-		PageButton.MouseButton1Down:Connect(function()
-			task.spawn(function()
-				for _, Button in next, MenuBar:GetChildren() do
-					if Button:IsA("GuiObject") then
-						local isThis = (Button.Name:lower() == PageContainer.Name:lower())
-						local inner = Button:FindFirstChild(Button.Name .. "Button")
-						Tween(Button, { ImageColor3 = isThis and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40) })
-						if inner then
-							Tween(inner, { TextTransparency = isThis and 0 or 0.5 })
-						end
-					end
-				end
-			end)
-
-			task.spawn(function()
-				for _, Display in next, DisplayFrame:GetChildren() do
-					if Display:IsA("GuiObject") then
-						Display.Visible = (Display.Name:lower() == PageContainer.Name:lower())
-					end
-				end
-			end)
-		end)
-
 		TabCount += 1
 
-		-- page layout
 		local DisplayList = Instance.new("UIListLayout")
 		DisplayList.SortOrder = Enum.SortOrder.LayoutOrder
 		DisplayList.Padding = UDim.new(0, 5)
@@ -607,48 +430,11 @@ function UILibrary.Load(GUITitle)
 		DisplayPadding.PaddingRight = UDim.new(0, 5)
 		DisplayPadding.Parent = DisplayPage
 
-		-- optional search
-		if SearchBarIncluded then
-			local SearchBarContainer = RoundBox(5)
-			SearchBarContainer.Name = "SearchBar"
-			SearchBarContainer.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			SearchBarContainer.Size = UDim2.new(1, 0, 0, 20)
-			SearchBarContainer.Parent = DisplayPage
-
-			local SearchBox = TextBox("Search...")
-			SearchBox.Name = "SearchInput"
-			SearchBox.Position = UDim2.new(0, 20, 0, 0)
-			SearchBox.Size = UDim2.new(1, -20, 1, 0)
-			SearchBox.TextTransparency = 0.5
-			SearchBox.TextXAlignment = Enum.TextXAlignment.Left
-			SearchBox.Parent = SearchBarContainer
-
-			local SearchIconObj = SearchIcon()
-			SearchIconObj.Parent = SearchBarContainer
-
-			SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-				local NewValue = SearchBox.Text
-				for _, Element in next, DisplayPage:GetChildren() do
-					if Element:IsA("Frame") then
-						if not string.find(Element.Name:lower(), "label") then
-							if NewValue == "" or string.find(Element.Name:lower(), NewValue:lower()) then
-								Element.Visible = true
-							else
-								Element.Visible = false
-							end
-						end
-					end
-				end
-			end)
-		end
-
-		--// ========================
-		--// PAGE API
-		--// ========================
+		-- PageLibrary (controls)
 		local PageLibrary = {}
 
-		-- BUTTON
 		function PageLibrary.AddButton(Text, Callback, Parent, Underline)
+			Text = tostring(Text or "Button")
 			local ButtonContainer = Frame()
 			ButtonContainer.Name = Text .. "BUTTON"
 			ButtonContainer.Size = UDim2.new(1, 0, 0, 20)
@@ -662,10 +448,10 @@ function UILibrary.Load(GUITitle)
 			ButtonForeground.Parent = ButtonContainer
 
 			if Underline then
-				local TextSize = TextService:GetTextSize(Text, 12, Enum.Font.Gotham, Vector2.new(0, 0))
+				local ts = TextService:GetTextSize(Text, 12, Enum.Font.Gotham, Vector2.new(0, 0))
 				local BottomEffect = Frame()
-				BottomEffect.Size = UDim2.new(0, TextSize.X, 0, 1)
-				BottomEffect.Position = UDim2.new(0.5, (-TextSize.X / 2) - 1, 1, -1)
+				BottomEffect.Size = UDim2.new(0, ts.X, 0, 1)
+				BottomEffect.Position = UDim2.new(0.5, (-ts.X / 2) - 1, 1, -1)
 				BottomEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 				BottomEffect.BackgroundTransparency = 0.5
 				BottomEffect.Parent = ButtonForeground
@@ -675,17 +461,25 @@ function UILibrary.Load(GUITitle)
 			HiddenButton.Parent = ButtonForeground
 
 			HiddenButton.MouseButton1Down:Connect(function()
-				if Callback then Callback() end
-				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(45, 45, 45) })
-				Tween(HiddenButton, { TextTransparency = 0.5 })
+				if typeof(Callback) == "function" then
+					Callback()
+				end
+				Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(45, 45, 45)})
+				Tween(HiddenButton, {TextTransparency = 0.5})
 				task.wait(TweenTime)
-				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(35, 35, 35) })
-				Tween(HiddenButton, { TextTransparency = 0 })
+				Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(35, 35, 35)})
+				Tween(HiddenButton, {TextTransparency = 0})
 			end)
+
+			local Handle = {}
+			function Handle:Destroy()
+				if ButtonContainer then ButtonContainer:Destroy() end
+			end
+			return Handle
 		end
 
-		-- LABEL
 		function PageLibrary.AddLabel(Text)
+			Text = tostring(Text or "Label")
 			local LabelContainer = Frame()
 			LabelContainer.Name = Text .. "LABEL"
 			LabelContainer.Size = UDim2.new(1, 0, 0, 20)
@@ -700,12 +494,233 @@ function UILibrary.Load(GUITitle)
 
 			local HiddenLabel = TextLabel(Text, 12)
 			HiddenLabel.Parent = LabelForeground
+
+			local Handle = {}
+			function Handle:Set(newText)
+				HiddenLabel.Text = tostring(newText or "")
+			end
+			function Handle:Get()
+				return HiddenLabel.Text
+			end
+			function Handle:Destroy()
+				if LabelContainer then LabelContainer:Destroy() end
+			end
+			return Handle
 		end
 
-		-- DROPDOWN
+		function PageLibrary.AddBlank(Parent)
+			local BlankContainer = Frame()
+			BlankContainer.Name = "BlankSPACE"
+			BlankContainer.Size = UDim2.new(1, 0, 0, 20)
+			BlankContainer.BackgroundTransparency = 1
+			BlankContainer.Parent = Parent or DisplayPage
+
+			local BlankForeground = RoundBox(5)
+			BlankForeground.Name = "BlankForeground"
+			BlankForeground.Size = UDim2.new(1, 0, 1, 0)
+			BlankForeground.ImageTransparency = 1
+			BlankForeground.Parent = BlankContainer
+
+			local Handle = {}
+			function Handle:Destroy()
+				if BlankContainer then BlankContainer:Destroy() end
+			end
+			return Handle
+		end
+
+		--// SLIDER (returns handle)
+		function PageLibrary.AddSlider(Text, ConfigurationDictionary, Callback, Parent)
+			Text = tostring(Text or "Slider")
+			local cfg = ConfigurationDictionary or {}
+
+			local Minimum = cfg.Min or cfg.min or cfg.Minimum or cfg.minimum or 0
+			local Maximum = cfg.Max or cfg.max or cfg.Maximum or cfg.maximum or 100
+			local Default = cfg.Def or cfg.def or cfg.Default or cfg.default or Minimum
+			local UseDecimal = (cfg.UseDecimal == true)
+
+			if Minimum > Maximum then
+				Minimum, Maximum = Maximum, Minimum
+			end
+
+			Default = clamp(Default, Minimum, Maximum)
+			local DefaultScale = (Maximum == Minimum) and 0 or ((Default - Minimum) / (Maximum - Minimum))
+			local CurrentValue = Default
+
+			local SliderContainer = Frame()
+			SliderContainer.Name = Text .. "SLIDER"
+			SliderContainer.Size = UDim2.new(1, 0, 0, 20)
+			SliderContainer.BackgroundTransparency = 1
+			SliderContainer.Parent = Parent or DisplayPage
+
+			local SliderForeground = RoundBox(5)
+			SliderForeground.Name = "SliderForeground"
+			SliderForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			SliderForeground.Size = UDim2.new(1, 0, 1, 0)
+			SliderForeground.Parent = SliderContainer
+
+			local SliderButton = TextButton(Text .. ": " .. tostring(Default), 12)
+			SliderButton.Size = UDim2.new(1, 0, 1, 0)
+			SliderButton.ZIndex = 6
+			SliderButton.Parent = SliderForeground
+
+			local SliderFill = RoundBox(5)
+			SliderFill.Size = UDim2.new(DefaultScale, 0, 1, 0)
+			SliderFill.ImageColor3 = Color3.fromRGB(70, 70, 70)
+			SliderFill.ZIndex = 5
+			SliderFill.ImageTransparency = 0.7
+			SliderFill.Parent = SliderButton
+
+			local function setByScale(XScale, fireCallbacks)
+				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
+				XScale = clamp(XScale, 0, 1)
+
+				local Value = Minimum + ((Maximum - Minimum) * XScale)
+				if UseDecimal then
+					Value = math.floor(Value * 100) / 100
+				else
+					Value = math.floor(Value)
+				end
+
+				CurrentValue = Value
+				SliderButton.Text = Text .. ": " .. tostring(Value)
+				SliderFill.Size = UDim2.new(XScale, 0, 1, 0)
+
+				if fireCallbacks and typeof(Callback) == "function" then
+					Callback(Value)
+				end
+			end
+
+			local function setByValue(Value, fireCallbacks)
+				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
+				Value = tonumber(Value) or Minimum
+				Value = clamp(Value, Minimum, Maximum)
+				local scale = (Maximum == Minimum) and 0 or ((Value - Minimum) / (Maximum - Minimum))
+				setByScale(scale, fireCallbacks)
+			end
+
+			SliderButton.MouseButton1Down:Connect(function()
+				local _, _, XScale = GetXY(SliderButton)
+				setByScale(XScale, true)
+
+				local MoveConn, EndConn
+				MoveConn = Mouse.Move:Connect(function()
+					local _, _, NewScale = GetXY(SliderButton)
+					setByScale(NewScale, true)
+				end)
+
+				EndConn = UserInputService.InputEnded:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+						if MoveConn then MoveConn:Disconnect() end
+						if EndConn then EndConn:Disconnect() end
+					end
+				end)
+			end)
+
+			if typeof(Callback) == "function" then
+				Callback(Default)
+			end
+
+			local Handle = {}
+			function Handle:Get()
+				return CurrentValue
+			end
+			function Handle:Set(val, fireCallbacks)
+				setByValue(val, fireCallbacks)
+			end
+			function Handle:Destroy()
+				if SliderContainer then SliderContainer:Destroy() end
+			end
+			return Handle
+		end
+
+		--// TOGGLE (returns handle)
+		function PageLibrary.AddToggle(Text, Default, Callback)
+			Text = tostring(Text or "Toggle")
+			local ThisToggle = (Default == true)
+
+			local ToggleContainer = Frame()
+			ToggleContainer.Name = Text .. "TOGGLE"
+			ToggleContainer.Size = UDim2.new(1, 0, 0, 20)
+			ToggleContainer.BackgroundTransparency = 1
+			ToggleContainer.Parent = DisplayPage
+
+			local ToggleLeftSide = RoundBox(5)
+			local ToggleRightSide = RoundBox(5)
+			local EffectFrame = Frame()
+			local RightTick = TickIcon()
+
+			local FlatLeft = Frame()
+			local FlatRight = Frame()
+
+			ToggleLeftSide.Size = UDim2.new(1, -22, 1, 0)
+			ToggleLeftSide.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			ToggleLeftSide.Parent = ToggleContainer
+
+			ToggleRightSide.Position = UDim2.new(1, -20, 0, 0)
+			ToggleRightSide.Size = UDim2.new(0, 20, 1, 0)
+			ToggleRightSide.ImageColor3 = Color3.fromRGB(45, 45, 45)
+			ToggleRightSide.Parent = ToggleContainer
+
+			FlatLeft.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+			FlatLeft.Size = UDim2.new(0, 5, 1, 0)
+			FlatLeft.Position = UDim2.new(1, -5, 0, 0)
+			FlatLeft.Parent = ToggleLeftSide
+
+			FlatRight.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			FlatRight.Size = UDim2.new(0, 5, 1, 0)
+			FlatRight.Parent = ToggleRightSide
+
+			EffectFrame.BackgroundColor3 = ThisToggle and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160)
+			EffectFrame.Position = UDim2.new(1, -22, 0.2, 0)
+			EffectFrame.Size = UDim2.new(0, 2, 0.6, 0)
+			EffectFrame.Parent = ToggleContainer
+
+			RightTick.ImageTransparency = ThisToggle and 0 or 1
+			RightTick.Parent = ToggleRightSide
+
+			local ToggleButton = TextButton(Text, 12)
+			ToggleButton.Name = "ToggleButton"
+			ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+			ToggleButton.Parent = ToggleLeftSide
+
+			local function apply(newValue, fireCallbacks)
+				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
+				ThisToggle = (newValue == true)
+				Tween(EffectFrame, {BackgroundColor3 = ThisToggle and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160)})
+				Tween(RightTick, {ImageTransparency = ThisToggle and 0 or 1})
+
+				if fireCallbacks and typeof(Callback) == "function" then
+					Callback(ThisToggle)
+				end
+			end
+
+			ToggleButton.MouseButton1Down:Connect(function()
+				apply(not ThisToggle, true)
+			end)
+
+			if typeof(Callback) == "function" then
+				Callback(ThisToggle)
+			end
+
+			local Handle = {}
+			function Handle:Get()
+				return ThisToggle
+			end
+			function Handle:Set(val, fireCallbacks)
+				apply(val == true, fireCallbacks)
+			end
+			function Handle:Destroy()
+				if ToggleContainer then ToggleContainer:Destroy() end
+			end
+			return Handle
+		end
+
+		--// DROPDOWN (returns handle)
 		function PageLibrary.AddDropdown(Text, ConfigurationArray, Callback)
+			Text = tostring(Text or "Dropdown")
 			local DropdownArray = ConfigurationArray or {}
 			local DropdownToggle = false
+
 			local Selected = DropdownArray[1]
 
 			local DropdownContainer = Frame()
@@ -745,166 +760,43 @@ function UILibrary.Load(GUITitle)
 			local DropdownList = Instance.new("UIListLayout")
 			DropdownList.Parent = DropdownFrame
 
-			for OptionIndex, Option in next, DropdownArray do
-				PageLibrary.AddButton(Option, function()
-					Selected = Option
+			for idx, option in ipairs(DropdownArray) do
+				PageLibrary.AddButton(option, function()
+					Selected = option
 					setLabel()
-					if Callback then Callback(Option) end
-				end, DropdownFrame, OptionIndex < #DropdownArray)
+					if typeof(Callback) == "function" then
+						Callback(option)
+					end
+				end, DropdownFrame, idx < #DropdownArray)
 			end
 
 			DropdownExpander.MouseButton1Down:Connect(function()
 				DropdownToggle = not DropdownToggle
-				Tween(DropdownContainer, {
-					Size = DropdownToggle and UDim2.new(1, 0, 0, 20 + (#DropdownArray * 20)) or UDim2.new(1, 0, 0, 20),
-				})
-				Tween(DropdownExpander, { Rotation = DropdownToggle and 135 or 0 })
+				Tween(DropdownContainer, {Size = DropdownToggle and UDim2.new(1, 0, 0, 20 + (#DropdownArray * 20)) or UDim2.new(1, 0, 0, 20)})
+				Tween(DropdownExpander, {Rotation = DropdownToggle and 135 or 0})
 			end)
 
-			-- handle
-			local key = _makeKey(__PageTitle, "Dropdown", Text)
 			local Handle = {}
-			Handle.__Type = "Dropdown"
-			Handle.__Default = Selected
-
 			function Handle:Get()
 				return Selected
 			end
-
 			function Handle:Set(val, fireCallbacks)
 				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
 				Selected = val
 				setLabel()
-				if fireCallbacks and Callback then
+				if fireCallbacks and typeof(Callback) == "function" then
 					Callback(Selected)
 				end
 			end
-
 			function Handle:Destroy()
 				if DropdownContainer then DropdownContainer:Destroy() end
-				UILibrary.__Registry[key] = nil
 			end
-
-			_register(key, Handle)
 			return Handle
 		end
 
-		-- SLIDER
-		function PageLibrary.AddSlider(Text, ConfigurationDictionary, Callback, Parent)
-			local Configuration = ConfigurationDictionary or {}
-
-			local Minimum = Configuration.Min or Configuration.min or Configuration.Minimum or Configuration.minimum or 0
-			local Maximum = Configuration.Max or Configuration.max or Configuration.Maximum or Configuration.maximum or 100
-			local Default = Configuration.Def or Configuration.def or Configuration.Default or Configuration.default or Minimum
-			local UseDecimal = Configuration.UseDecimal or false
-
-			if Minimum > Maximum then
-				Minimum, Maximum = Maximum, Minimum
-			end
-
-			Default = math.clamp(Default, Minimum, Maximum)
-			local DefaultScale = (Maximum == Minimum) and 0 or ((Default - Minimum) / (Maximum - Minimum))
-			local CurrentValue = Default
-
-			local SliderContainer = Frame()
-			SliderContainer.Name = Text .. "SLIDER"
-			SliderContainer.Size = UDim2.new(1, 0, 0, 20)
-			SliderContainer.BackgroundTransparency = 1
-			SliderContainer.Parent = Parent or DisplayPage
-
-			local SliderForeground = RoundBox(5)
-			SliderForeground.Name = "SliderForeground"
-			SliderForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			SliderForeground.Size = UDim2.new(1, 0, 1, 0)
-			SliderForeground.Parent = SliderContainer
-
-			local SliderButton = TextButton(Text .. ": " .. tostring(Default))
-			SliderButton.Size = UDim2.new(1, 0, 1, 0)
-			SliderButton.ZIndex = 6
-			SliderButton.Parent = SliderForeground
-
-			local SliderFill = RoundBox(5)
-			SliderFill.Size = UDim2.new(DefaultScale, 0, 1, 0)
-			SliderFill.ImageColor3 = Color3.fromRGB(70, 70, 70)
-			SliderFill.ZIndex = 5
-			SliderFill.ImageTransparency = 0.7
-			SliderFill.Parent = SliderButton
-
-			local function SetByScale(XScale, fireCallbacks)
-				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-				XScale = math.clamp(XScale or 0, 0, 1)
-
-				local Value = Minimum + ((Maximum - Minimum) * XScale)
-				if UseDecimal then
-					Value = math.floor(Value * 100) / 100
-				else
-					Value = math.floor(Value)
-				end
-
-				CurrentValue = Value
-				SliderButton.Text = Text .. ": " .. tostring(Value)
-				SliderFill.Size = UDim2.new(XScale, 0, 1, 0)
-
-				if fireCallbacks and Callback then
-					Callback(Value)
-				end
-			end
-
-			local function SetByValue(Value, fireCallbacks)
-				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-				Value = tonumber(Value) or Minimum
-				Value = math.clamp(Value, Minimum, Maximum)
-				local scale = (Maximum == Minimum) and 0 or ((Value - Minimum) / (Maximum - Minimum))
-				SetByScale(scale, fireCallbacks)
-			end
-
-			SliderButton.MouseButton1Down:Connect(function()
-				local _, _, XScale = GetXY(SliderButton)
-				SetByScale(XScale, true)
-
-				local MoveConn
-				local EndConn
-
-				MoveConn = Mouse.Move:Connect(function()
-					local _, _, NewScale = GetXY(SliderButton)
-					SetByScale(NewScale, true)
-				end)
-
-				EndConn = UserInputService.InputEnded:Connect(function(UserInput)
-					if UserInput.UserInputType == Enum.UserInputType.MouseButton1 then
-						if MoveConn then MoveConn:Disconnect() end
-						if EndConn then EndConn:Disconnect() end
-					end
-				end)
-			end)
-
-			if Callback then Callback(Default) end
-
-			local key = _makeKey(__PageTitle, "Slider", Text)
-			local Handle = {}
-			Handle.__Type = "Slider"
-			Handle.__Default = Default
-
-			function Handle:Get()
-				return CurrentValue
-			end
-
-			function Handle:Set(val, fireCallbacks)
-				SetByValue(val, fireCallbacks)
-			end
-
-			function Handle:Destroy()
-				if SliderContainer then SliderContainer:Destroy() end
-				UILibrary.__Registry[key] = nil
-			end
-
-			_register(key, Handle)
-			return Handle
-		end
-
-		-- COLOUR PICKER (stores {r,g,b})
+		--// COLOUR PICKER (returns handle, Get -> {r,g,b} 0..255)
 		function PageLibrary.AddColourPicker(Text, DefaultColour, Callback)
-			DefaultColour = DefaultColour or Color3.fromRGB(255, 255, 255)
+			Text = tostring(Text or "Colour")
 
 			local ColourDictionary = {
 				white = Color3.fromRGB(255, 255, 255),
@@ -961,30 +853,6 @@ function UILibrary.Load(GUITitle)
 			PickerList.SortOrder = Enum.SortOrder.LayoutOrder
 			PickerList.Parent = PickerFrame
 
-			local function apply(fireCallbacks)
-				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-				local c = Color3.fromRGB(r, g, b)
-				ColourTracker.Value = c
-				if fireCallbacks and Callback then
-					Callback(c)
-				end
-			end
-
-			PageLibrary.AddSlider("R", { Min = 0, Max = 255, Def = r }, function(Value)
-				r = Value
-				apply(true)
-			end, PickerFrame)
-
-			PageLibrary.AddSlider("G", { Min = 0, Max = 255, Def = g }, function(Value)
-				g = Value
-				apply(true)
-			end, PickerFrame)
-
-			PageLibrary.AddSlider("B", { Min = 0, Max = 255, Def = b }, function(Value)
-				b = Value
-				apply(true)
-			end, PickerFrame)
-
 			local EffectLeft = Frame()
 			local EffectRight = Frame()
 
@@ -1001,295 +869,136 @@ function UILibrary.Load(GUITitle)
 			PickerLabel.Size = UDim2.new(1, 0, 0, 20)
 			PickerLabel.Parent = PickerLeftSide
 
+			local function apply(fireCallbacks)
+				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
+				local c = Color3.fromRGB(r, g, b)
+				ColourTracker.Value = c
+				if fireCallbacks and typeof(Callback) == "function" then
+					Callback(c)
+				end
+			end
+
+			PageLibrary.AddSlider("R", {Min = 0, Max = 255, Def = r}, function(v)
+				r = v
+				apply(true)
+			end, PickerFrame)
+
+			PageLibrary.AddSlider("G", {Min = 0, Max = 255, Def = g}, function(v)
+				g = v
+				apply(true)
+			end, PickerFrame)
+
+			PageLibrary.AddSlider("B", {Min = 0, Max = 255, Def = b}, function(v)
+				b = v
+				apply(true)
+			end, PickerFrame)
+
 			ColourTracker:GetPropertyChangedSignal("Value"):Connect(function()
-				local NewValue = ColourTracker.Value
-				EffectRight.BackgroundColor3 = NewValue
-				PickerRightSide.ImageColor3 = NewValue
+				local c = ColourTracker.Value
+				EffectRight.BackgroundColor3 = c
+				PickerRightSide.ImageColor3 = c
 			end)
 
 			local PickerToggle = false
-			local PickerButton = TextButton("")
+			local PickerButton = TextButton("", 12)
 			PickerButton.Parent = PickerRightSide
 
 			PickerButton.MouseButton1Down:Connect(function()
 				PickerToggle = not PickerToggle
-				Tween(PickerContainer, { Size = PickerToggle and UDim2.new(1, 0, 0, 80) or UDim2.new(1, 0, 0, 20) })
+				Tween(PickerContainer, {Size = PickerToggle and UDim2.new(1, 0, 0, 80) or UDim2.new(1, 0, 0, 20)})
 			end)
 
-			if Callback then Callback(DefaultColour) end
-
-			local key = _makeKey(__PageTitle, "ColourPicker", Text)
-			local Handle = {}
-			Handle.__Type = "ColourPicker"
-			Handle.__Default = { r, g, b }
-
-			function Handle:Get()
-				return { r, g, b }
+			if typeof(Callback) == "function" then
+				Callback(DefaultColour)
 			end
 
+			local Handle = {}
+			function Handle:Get()
+				return {r, g, b}
+			end
 			function Handle:Set(val, fireCallbacks)
 				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-
 				if typeof(val) == "Color3" then
 					r = math.round(val.R * 255)
 					g = math.round(val.G * 255)
 					b = math.round(val.B * 255)
 				elseif typeof(val) == "table" then
-					r = math.clamp(tonumber(val[1] or val.r) or r, 0, 255)
-					g = math.clamp(tonumber(val[2] or val.g) or g, 0, 255)
-					b = math.clamp(tonumber(val[3] or val.b) or b, 0, 255)
+					r = clamp(val[1] or val.r or r, 0, 255)
+					g = clamp(val[2] or val.g or g, 0, 255)
+					b = clamp(val[3] or val.b or b, 0, 255)
 				end
-
 				apply(fireCallbacks)
 			end
-
 			function Handle:Destroy()
 				if PickerContainer then PickerContainer:Destroy() end
-				UILibrary.__Registry[key] = nil
 			end
-
-			_register(key, Handle)
 			return Handle
 		end
 
+		-- SearchBar (after controls exist, so it can filter properly)
+		if SearchBarIncluded then
+			local SearchBarContainer = RoundBox(5)
+			SearchBarContainer.Name = "SearchBar"
+			SearchBarContainer.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			SearchBarContainer.Size = UDim2.new(1, 0, 0, 20)
+			SearchBarContainer.Parent = DisplayPage
+			SearchBarContainer.LayoutOrder = -999999
 
-		
-		function PageLibrary.AddBlank(Parent)
-			local BlankContainer = Frame()
-			BlankContainer.Name = "BlankSPACE"
-			BlankContainer.Size = UDim2.new(1, 0, 0, 20)
-			BlankContainer.BackgroundTransparency = 1
-			BlankContainer.Parent = Parent or DisplayPage
+			local SearchBox = TextBox("Search...", 12)
+			SearchBox.Name = "SearchInput"
+			SearchBox.Position = UDim2.new(0, 20, 0, 0)
+			SearchBox.Size = UDim2.new(1, -20, 1, 0)
+			SearchBox.TextTransparency = 0.5
+			SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+			SearchBox.ClearTextOnFocus = false
+			SearchBox.Parent = SearchBarContainer
 
-			local BlankForeground = RoundBox(5)
-			BlankForeground.Name = "BlankForeground"
-			BlankForeground.Size = UDim2.new(1, 0, 1, 0)
-			BlankForeground.ImageTransparency = 1
-			BlankForeground.Parent = BlankContainer
+			local SearchIconObj = SearchIcon()
+			SearchIconObj.Parent = SearchBarContainer
 
-			return BlankContainer
-		end
-
-
-		
-		-- VALUE BUTTON (button with right square indicator)
-		function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
-			Options = Options or {}
-			local ButtonEnabled = (Options.button == nil) and true or (Options.button == true)
-			local RefreshRate = tonumber(Options.refresh) or 0.25
-
-			local ValueBool = (Default == true)
-
-			local ButtonContainer = Frame()
-			ButtonContainer.Name = Text .. "VALUEBUTTON"
-			ButtonContainer.Size = UDim2.new(1, 0, 0, 20)
-			ButtonContainer.BackgroundTransparency = 1
-			ButtonContainer.Parent = DisplayPage
-
-			local ButtonForeground = RoundBox(5)
-			ButtonForeground.Name = "ButtonForeground"
-			ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
-			ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			ButtonForeground.Parent = ButtonContainer
-
-			local HiddenButton = TextButton(Text, 12)
-			HiddenButton.Name = "ValueButton"
-			HiddenButton.Parent = ButtonForeground
-
-			local IndicatorHolder = Frame()
-			IndicatorHolder.Name = "IndicatorHolder"
-			IndicatorHolder.BackgroundTransparency = 1
-			IndicatorHolder.Size = UDim2.new(0, 20, 0, 20)
-			IndicatorHolder.Position = UDim2.new(1, -20, 0, 0)
-			IndicatorHolder.ZIndex = Level + 2
-			IndicatorHolder.Parent = ButtonForeground
-
-			local Indicator = Frame()
-			Indicator.Name = "Indicator"
-			Indicator.BorderSizePixel = 0
-			Indicator.Size = UDim2.new(0, 12, 0, 12)
-			Indicator.Position = UDim2.new(0.5, -6, 0.5, -6)
-			Indicator.ZIndex = Level + 3
-			Indicator.Parent = IndicatorHolder
-
-			local IndicatorCorner = Instance.new("UICorner")
-			IndicatorCorner.CornerRadius = UDim.new(0, 3)
-			IndicatorCorner.Parent = Indicator
-
-			local GREEN = Color3.fromRGB(0, 255, 109)
-			local RED = Color3.fromRGB(255, 160, 160)
-
-			local function Apply(NewBool)
-				NewBool = (NewBool == true)
-				if NewBool == ValueBool then
-					return
-				end
-				ValueBool = NewBool
-				Tween(Indicator, { BackgroundColor3 = ValueBool and GREEN or RED })
-			end
-
-			Indicator.BackgroundColor3 = ValueBool and GREEN or RED
-
-			HiddenButton.MouseButton1Down:Connect(function()
-				if ButtonEnabled and OnClick then
-					OnClick(ValueBool)
-				end
-
-				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(45, 45, 45) })
-				Tween(HiddenButton, { TextTransparency = 0.5 })
-				task.wait(TweenTime)
-				Tween(ButtonForeground, { ImageColor3 = Color3.fromRGB(35, 35, 35) })
-				Tween(HiddenButton, { TextTransparency = 0 })
-			end)
-
-			local GetterConn
-			if typeof(Getter) == "function" then
-				local acc = 0
-				GetterConn = RunService.Heartbeat:Connect(function(dt)
-					acc += dt
-					if acc < RefreshRate then
-						return
+			SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+				local q = tostring(SearchBox.Text or ""):lower()
+				for _, Element in ipairs(DisplayPage:GetChildren()) do
+					if Element:IsA("Frame") then
+						local nm = Element.Name:lower()
+						-- Skip label containers
+						local isLabel = nm:find("label") ~= nil
+						local isSearch = (Element.Name == "SearchBar")
+						if not isLabel and not isSearch then
+							if q == "" then
+								Element.Visible = true
+							else
+								Element.Visible = (nm:find(q, 1, true) ~= nil)
+							end
+						end
 					end
-					acc = 0
-
-					local ok2, res = pcall(Getter)
-					if ok2 and res ~= nil then
-						Apply(res)
-					end
-				end)
-			end
-
-			local key = _makeKey(__PageTitle, "ValueButton", Text)
-			local Handle = {}
-			Handle.__Type = "ValueButton"
-			Handle.__Default = ValueBool
-
-			function Handle:Set(NewBool)
-				Apply(NewBool)
-			end
-
-			function Handle:Get()
-				return ValueBool
-			end
-
-			function Handle:Destroy()
-				if GetterConn then
-					GetterConn:Disconnect()
-					GetterConn = nil
 				end
-				if ButtonContainer then
-					ButtonContainer:Destroy()
-				end
-				UILibrary.__Registry[key] = nil
-			end
-
-			_register(key, Handle)
-			return Handle
-		end
-
-		-- TOGGLE
-		function PageLibrary.AddToggle(Text, Default, Callback)
-			local ThisToggle = (Default == true)
-
-			local ToggleContainer = Frame()
-			ToggleContainer.Name = Text .. "TOGGLE"
-			ToggleContainer.Size = UDim2.new(1, 0, 0, 20)
-			ToggleContainer.BackgroundTransparency = 1
-			ToggleContainer.Parent = DisplayPage
-
-			local ToggleLeftSide = RoundBox(5)
-			local ToggleRightSide = RoundBox(5)
-			local EffectFrame = Frame()
-			local RightTick = TickIcon()
-
-			local FlatLeft = Frame()
-			local FlatRight = Frame()
-
-			ToggleLeftSide.Size = UDim2.new(1, -22, 1, 0)
-			ToggleLeftSide.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			ToggleLeftSide.Parent = ToggleContainer
-
-			ToggleRightSide.Position = UDim2.new(1, -20, 0, 0)
-			ToggleRightSide.Size = UDim2.new(0, 20, 1, 0)
-			ToggleRightSide.ImageColor3 = Color3.fromRGB(45, 45, 45)
-			ToggleRightSide.Parent = ToggleContainer
-
-			FlatLeft.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-			FlatLeft.Size = UDim2.new(0, 5, 1, 0)
-			FlatLeft.Position = UDim2.new(1, -5, 0, 0)
-			FlatLeft.Parent = ToggleLeftSide
-
-			FlatRight.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-			FlatRight.Size = UDim2.new(0, 5, 1, 0)
-			FlatRight.Parent = ToggleRightSide
-
-			EffectFrame.BackgroundColor3 = ThisToggle and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160)
-			EffectFrame.Position = UDim2.new(1, -22, 0.2, 0)
-			EffectFrame.Size = UDim2.new(0, 2, 0.6, 0)
-			EffectFrame.Parent = ToggleContainer
-
-			RightTick.ImageTransparency = ThisToggle and 0 or 1
-			RightTick.Parent = ToggleRightSide
-
-			local ToggleButton = TextButton(Text, 12)
-			ToggleButton.Name = "ToggleButton"
-			ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-			ToggleButton.Parent = ToggleLeftSide
-
-			local function Apply(NewValue, fireCallbacks)
-				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-				ThisToggle = (NewValue == true)
-				Tween(EffectFrame, { BackgroundColor3 = ThisToggle and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160) })
-				Tween(RightTick, { ImageTransparency = ThisToggle and 0 or 1 })
-				if fireCallbacks and Callback then
-					Callback(ThisToggle)
-				end
-			end
-
-			ToggleButton.MouseButton1Down:Connect(function()
-				Apply(not ThisToggle, true)
 			end)
-
-			if Callback then Callback(ThisToggle) end
-
-			local key = _makeKey(__PageTitle, "Toggle", Text)
-			local Handle = {}
-			Handle.__Type = "Toggle"
-			Handle.__Default = (Default == true)
-
-			function Handle:Get()
-				return ThisToggle
-			end
-
-			function Handle:Set(val, fireCallbacks)
-				Apply(val == true, fireCallbacks)
-			end
-
-			function Handle:Destroy()
-				if ToggleContainer then ToggleContainer:Destroy() end
-				UILibrary.__Registry[key] = nil
-			end
-
-			_register(key, Handle)
-			return Handle
 		end
 
 		return PageLibrary
 	end
 
+	-- force initial active tab
+	task.defer(function()
+		local first = MenuBar:FindFirstChildWhichIsA("GuiObject")
+		if first then
+			setActiveTab(first.Name:lower())
+		end
+	end)
+
 	return TabLibrary
 end
 
---// ========================
---// NOTIFY (single, clean)
---// ========================
+--// ============================================================
+--// NOTIFY (UIListLayout-safe slide-in toast)
+--// ============================================================
 function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Title = tostring(Title or "Notification")
 	Text = tostring(Text or "")
 	Duration = tonumber(Duration) or 3
 	LogoImage = LogoImage or "rbxthumb://type=Asset&id=6845502547&w=150&h=150"
 
-	-- find loaded GUI
 	local function findLoadedGui()
 		local function scan(parent)
 			for _, g in ipairs(parent:GetChildren()) do
@@ -1340,7 +1049,15 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Toast.Size = UDim2.new(0, 280, 0, 82)
 	Toast.ZIndex = 9999
 	Toast.Parent = Holder
-	Toast.Position = UDim2.new(1, 300, 0, 0)
+
+	-- Slide inner frame (Layout-safe)
+	local Slide = Instance.new("Frame")
+	Slide.Name = "Slide"
+	Slide.BackgroundTransparency = 1
+	Slide.Size = UDim2.new(1, 0, 1, 0)
+	Slide.Position = UDim2.new(1, 300, 0, 0)
+	Slide.ZIndex = 9999
+	Slide.Parent = Toast
 
 	local Card = Instance.new("Frame")
 	Card.Name = "Card"
@@ -1348,7 +1065,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Card.BorderSizePixel = 0
 	Card.Size = UDim2.new(1, 0, 1, 0)
 	Card.ZIndex = 10000
-	Card.Parent = Toast
+	Card.Parent = Slide
 
 	local CardCorner = Instance.new("UICorner")
 	CardCorner.CornerRadius = UDim.new(0, 10)
@@ -1385,7 +1102,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	local Logo = Instance.new("ImageLabel")
 	Logo.BackgroundTransparency = 1
 	Logo.Size = UDim2.new(0, 42, 0, 42)
-	Logo.Position = UDim2.new(0, 10, 0, 24)
+	Logo.Position = UDim2.new(0, 10, 0, 20)
 	Logo.Image = LogoImage
 	Logo.ZIndex = 10002
 	Logo.Parent = Card
@@ -1424,7 +1141,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarFill.BorderSizePixel = 0
 	BarFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	BarFill.Size = UDim2.new(1, 0, 1, 0)
-	BarFill.Position = UDim2.new(0, 0, 0, 0)
 	BarFill.ZIndex = 10002
 	BarFill.Parent = BarBack
 
@@ -1432,7 +1148,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarFillCorner.CornerRadius = UDim.new(0, 6)
 	BarFillCorner.Parent = BarFill
 
-	-- fade in
+	-- Fade in
 	Card.BackgroundTransparency = 1
 	TitleBar.BackgroundTransparency = 1
 	Logo.ImageTransparency = 1
@@ -1441,7 +1157,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarBack.BackgroundTransparency = 1
 	BarFill.BackgroundTransparency = 1
 
-	TweenService:Create(Toast, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+	TweenService:Create(Slide, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
 	TweenService:Create(Card, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(TitleBar, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(Logo, TweenInfo.new(0.14), {ImageTransparency = 0}):Play()
@@ -1450,7 +1166,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	TweenService:Create(BarBack, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(BarFill, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 
-	-- rgb stroke
+	-- RGB stroke
 	local start = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
@@ -1473,7 +1189,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 			return
 		end
 
-		local tweenOut = TweenService:Create(Toast, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 0, 0)})
+		local tweenOut = TweenService:Create(Slide, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 0, 0)})
 		tweenOut:Play()
 		tweenOut.Completed:Wait()
 
