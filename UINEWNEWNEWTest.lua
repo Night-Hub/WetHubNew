@@ -991,7 +991,7 @@ function UILibrary.Load(GUITitle)
 end
 
 --// ============================================================
---// NOTIFY (UIListLayout-safe slide-in toast)
+--// NOTIFY (name-independent, CoreGui-anchored, randomisation-safe)
 --// ============================================================
 function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Title = tostring(Title or "Notification")
@@ -999,60 +999,66 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Duration = tonumber(Duration) or 3
 	LogoImage = LogoImage or "rbxthumb://type=Asset&id=6845502547&w=150&h=150"
 
-	local function findLoadedGui()
-		local function scan(parent)
-			for _, g in ipairs(parent:GetChildren()) do
-				if g:IsA("ScreenGui") then
-					local cf = g:FindFirstChild("ContainerFrame")
-					if cf and cf:FindFirstChild("MainFrame") then
-						local mf = cf.MainFrame
-						if mf:FindFirstChild("TitleBar") and mf:FindFirstChild("Display") and mf:FindFirstChild("MenuBar") then
-							return g
-						end
-					end
-				end
+	local CoreGuiService = game:GetService("CoreGui")
+	local TweenService = game:GetService("TweenService")
+	local RunService = game:GetService("RunService")
+
+	--// find or create notify root (attribute based, survives renaming)
+	local function getNotifyRoot()
+		for _, g in ipairs(CoreGuiService:GetChildren()) do
+			if g:IsA("ScreenGui") and g:GetAttribute("WetHubNotifyRoot") == true then
+				return g
 			end
-			return nil
 		end
 
-		local pg = Player and (Player:FindFirstChildOfClass("PlayerGui") or Player:WaitForChild("PlayerGui"))
-		return scan(CoreGuiService) or (pg and scan(pg)) or nil
+		local root = Instance.new("ScreenGui")
+		root.Name = "__WetHubNotify"
+		root.ResetOnSpawn = false
+		root.IgnoreGuiInset = false
+		root.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		root:SetAttribute("WetHubNotifyRoot", true)
+		root.Parent = CoreGuiService
+		return root
 	end
 
-	local Gui = findLoadedGui()
-	if not Gui then
-		warn("UILibrary.Notify: couldn't find loaded UI (call after UILibrary.Load).")
-		return
+	local function getHolder(root)
+		for _, ch in ipairs(root:GetChildren()) do
+			if ch:IsA("Frame") and ch:GetAttribute("WetHubNotifyHolder") == true then
+				return ch
+			end
+		end
+
+		local holder = Instance.new("Frame")
+		holder.Name = "NotificationHolder"
+		holder.BackgroundTransparency = 1
+		holder.Size = UDim2.new(0, 280, 1, 0)
+		holder.Position = UDim2.new(1, -290, 0, 12)
+		holder.ZIndex = 9999
+		holder:SetAttribute("WetHubNotifyHolder", true)
+		holder.Parent = root
+
+		local list = Instance.new("UIListLayout")
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Padding = UDim.new(0, 8)
+		list.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		list.VerticalAlignment = Enum.VerticalAlignment.Top
+		list.Parent = holder
+
+		return holder
 	end
 
-	local Holder = Gui:FindFirstChild("NotificationHolder")
-	if not Holder then
-		Holder = Instance.new("Frame")
-		Holder.Name = "NotificationHolder"
-		Holder.BackgroundTransparency = 1
-		Holder.Size = UDim2.new(0, 280, 1, 0)
-		Holder.Position = UDim2.new(1, -290, 0, 12)
-		Holder.ZIndex = 9999
-		Holder.Parent = Gui
+	local Gui = getNotifyRoot()
+	local Holder = getHolder(Gui)
 
-		local List = Instance.new("UIListLayout")
-		List.SortOrder = Enum.SortOrder.LayoutOrder
-		List.Padding = UDim.new(0, 8)
-		List.HorizontalAlignment = Enum.HorizontalAlignment.Right
-		List.VerticalAlignment = Enum.VerticalAlignment.Top
-		List.Parent = Holder
-	end
-
+	--// Toast container
 	local Toast = Instance.new("Frame")
-	Toast.Name = "Toast"
 	Toast.BackgroundTransparency = 1
 	Toast.Size = UDim2.new(0, 280, 0, 82)
 	Toast.ZIndex = 9999
 	Toast.Parent = Holder
 
-	-- Slide inner frame (Layout-safe)
+	-- slide wrapper (layout-safe)
 	local Slide = Instance.new("Frame")
-	Slide.Name = "Slide"
 	Slide.BackgroundTransparency = 1
 	Slide.Size = UDim2.new(1, 0, 1, 0)
 	Slide.Position = UDim2.new(1, 300, 0, 0)
@@ -1060,7 +1066,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Slide.Parent = Toast
 
 	local Card = Instance.new("Frame")
-	Card.Name = "Card"
 	Card.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	Card.BorderSizePixel = 0
 	Card.Size = UDim2.new(1, 0, 1, 0)
@@ -1092,7 +1097,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	TitleLabel.BackgroundTransparency = 1
 	TitleLabel.Size = UDim2.new(1, -10, 1, 0)
 	TitleLabel.Position = UDim2.new(0, 5, 0, 0)
-	TitleLabel.Font = MainFont
+	TitleLabel.Font = Enum.Font.Gotham
 	TitleLabel.TextSize = 14
 	TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	TitleLabel.Text = Title
@@ -1115,7 +1120,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	Body.BackgroundTransparency = 1
 	Body.Size = UDim2.new(1, -64, 0, 42)
 	Body.Position = UDim2.new(0, 58, 0, 32)
-	Body.Font = MainFont
+	Body.Font = Enum.Font.Gotham
 	Body.TextSize = 13
 	Body.TextColor3 = Color3.fromRGB(255, 255, 255)
 	Body.TextXAlignment = Enum.TextXAlignment.Left
@@ -1133,10 +1138,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarBack.ZIndex = 10001
 	BarBack.Parent = Card
 
-	local BarBackCorner = Instance.new("UICorner")
-	BarBackCorner.CornerRadius = UDim.new(0, 6)
-	BarBackCorner.Parent = BarBack
-
 	local BarFill = Instance.new("Frame")
 	BarFill.BorderSizePixel = 0
 	BarFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
@@ -1144,11 +1145,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	BarFill.ZIndex = 10002
 	BarFill.Parent = BarBack
 
-	local BarFillCorner = Instance.new("UICorner")
-	BarFillCorner.CornerRadius = UDim.new(0, 6)
-	BarFillCorner.Parent = BarFill
-
-	-- Fade in
+	-- fade in
 	Card.BackgroundTransparency = 1
 	TitleBar.BackgroundTransparency = 1
 	Logo.ImageTransparency = 1
@@ -1166,7 +1163,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	TweenService:Create(BarBack, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(BarFill, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 
-	-- RGB stroke
+	-- RGB stroke animation
 	local start = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
@@ -1179,10 +1176,10 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 		Stroke.Color = Color3.fromHSV(hue, 1, 1)
 	end)
 
-	-- progress
+	-- progress bar shrink
 	TweenService:Create(BarFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
 
-	-- out
+	-- exit
 	task.delay(Duration, function()
 		if not Toast or not Toast.Parent then
 			if conn then conn:Disconnect() end
@@ -1197,5 +1194,6 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 		Toast:Destroy()
 	end)
 end
+
 
 return UILibrary
