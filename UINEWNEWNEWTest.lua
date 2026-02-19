@@ -1107,7 +1107,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	local Logo = Instance.new("ImageLabel")
 	Logo.BackgroundTransparency = 1
 	Logo.Size = UDim2.new(0, 42, 0, 42)
-	Logo.Position = UDim2.new(0, 10, 0, 20)
+	Logo.Position = UDim2.new(0, 10, 0, 30)
 	Logo.Image = LogoImage
 	Logo.ZIndex = 10002
 	Logo.Parent = Card
