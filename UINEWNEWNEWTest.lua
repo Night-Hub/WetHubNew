@@ -716,146 +716,145 @@ function UILibrary.Load(GUITitle)
 		end
 
 		--// VALUE BUTTON (returns handle)
-		--// - Shows a label on the left
-		--// - Shows a small status indicator on the right
-		--// - Optional Getter polled at Options.refresh (seconds)
-		--// - Optional click behavior:
-		--//     Options.toggle == true  -> toggles ValueBool on click (and calls OnClick(newValue))
-		--//     Options.toggle == false -> does NOT toggle, just calls OnClick(currentValue)
-		--// - Optional disable click action: Options.button = false
-		function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
-			Text = tostring(Text or "ValueButton")
-			Options = Options or {}
+--// - Shows centered text
+--// - Shows a small status indicator on the right (padded + slightly smaller)
+--// - Optional Getter polled at Options.refresh (seconds)
+--// - Optional click behavior:
+--//     Options.toggle == true  -> toggles ValueBool on click (and calls OnClick(newValue))
+--//     Options.toggle == false -> does NOT toggle, just calls OnClick(currentValue)
+--// - Optional disable click action: Options.button = false
+function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
+	Text = tostring(Text or "ValueButton")
+	Options = Options or {}
 
-			local ButtonEnabled = (Options.button == nil) and true or (Options.button == true)
-			local RefreshRate = tonumber(Options.refresh) or 0.25
-			local ToggleOnClick = (Options.toggle == true)
+	local ButtonEnabled = (Options.button == nil) and true or (Options.button == true)
+	local RefreshRate = tonumber(Options.refresh) or 0.25
+	local ToggleOnClick = (Options.toggle == true)
 
-			local ValueBool = (Default == true)
+	local ValueBool = (Default == true)
 
-			-- container
-			local ButtonContainer = Frame()
-			ButtonContainer.Name = Text .. "VALUEBUTTON"
-			ButtonContainer.Size = UDim2.new(1, 0, 0, 20)
-			ButtonContainer.BackgroundTransparency = 1
-			ButtonContainer.Parent = DisplayPage
+	-- container
+	local ButtonContainer = Frame()
+	ButtonContainer.Name = Text .. "VALUEBUTTON"
+	ButtonContainer.Size = UDim2.new(1, 0, 0, 20)
+	ButtonContainer.BackgroundTransparency = 1
+	ButtonContainer.Parent = DisplayPage
 
-			local ButtonForeground = RoundBox(5)
-			ButtonForeground.Name = "ButtonForeground"
-			ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
-			ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			ButtonForeground.Parent = ButtonContainer
+	local ButtonForeground = RoundBox(5)
+	ButtonForeground.Name = "ButtonForeground"
+	ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
+	ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+	ButtonForeground.Parent = ButtonContainer
 
-			-- label / click surface
-			local HiddenButton = TextButton(Text, 12)
-			HiddenButton.Name = "ValueButton"
-			HiddenButton.TextXAlignment = Enum.TextXAlignment.Left
-			HiddenButton.TextTruncate = Enum.TextTruncate.AtEnd
-			HiddenButton.Parent = ButtonForeground
+	-- RIGHT PADDING / SIZE
+	local RightPadding = 8
+	local IndicatorSize = 11
 
-			-- small right-side indicator holder
-			local IndicatorHolder = Frame()
-			IndicatorHolder.Name = "IndicatorHolder"
-			IndicatorHolder.BackgroundTransparency = 1
-			IndicatorHolder.Size = UDim2.new(0, 20, 0, 20)
-			IndicatorHolder.Position = UDim2.new(1, -20, 0, 0)
-			IndicatorHolder.Parent = ButtonForeground
+	-- indicator (fully right aligned)
+	local Indicator = Frame()
+	Indicator.Name = "Indicator"
+	Indicator.BorderSizePixel = 0
+	Indicator.Size = UDim2.new(0, IndicatorSize, 0, IndicatorSize)
+	Indicator.AnchorPoint = Vector2.new(1, 0.5)
+	Indicator.Position = UDim2.new(1, -RightPadding, 0.5, 0)
+	Indicator.Parent = ButtonForeground
 
-			local Indicator = Frame()
-			Indicator.Name = "Indicator"
-			Indicator.BorderSizePixel = 0
-			Indicator.Size = UDim2.new(0, 12, 0, 12)
-			Indicator.Position = UDim2.new(0.5, -6, 0.5, -6)
-			Indicator.Parent = IndicatorHolder
+	local IndicatorCorner = Instance.new("UICorner")
+	IndicatorCorner.CornerRadius = UDim.new(0, 3)
+	IndicatorCorner.Parent = Indicator
 
-			local IndicatorCorner = Instance.new("UICorner")
-			IndicatorCorner.CornerRadius = UDim.new(0, 3)
-			IndicatorCorner.Parent = Indicator
+	-- text (centered, but leaves space for indicator)
+	local HiddenButton = TextButton(Text, 12)
+	HiddenButton.Name = "ValueButton"
+	HiddenButton.TextXAlignment = Enum.TextXAlignment.Center
+	HiddenButton.TextTruncate = Enum.TextTruncate.AtEnd
+	HiddenButton.Size = UDim2.new(1, -(IndicatorSize + RightPadding + 6), 1, 0)
+	HiddenButton.Position = UDim2.new(0, 0, 0, 0)
+	HiddenButton.Parent = ButtonForeground
 
-			local GREEN = Color3.fromRGB(0, 255, 109)
-			local RED = Color3.fromRGB(255, 160, 160)
+	local GREEN = Color3.fromRGB(0, 255, 109)
+	local RED = Color3.fromRGB(255, 160, 160)
 
-			local function apply(newBool, noTween)
-				newBool = (newBool == true)
-				if ValueBool == newBool then
-					-- even if no state change, allow a "refresh" to keep UI consistent
-					if noTween then
-						Indicator.BackgroundColor3 = ValueBool and GREEN or RED
-					else
-						Tween(Indicator, {BackgroundColor3 = ValueBool and GREEN or RED})
-					end
-					return
-				end
-
-				ValueBool = newBool
-				if noTween then
-					Indicator.BackgroundColor3 = ValueBool and GREEN or RED
-				else
-					Tween(Indicator, {BackgroundColor3 = ValueBool and GREEN or RED})
-				end
+	local function apply(newBool, noTween)
+		newBool = (newBool == true)
+		if ValueBool == newBool then
+			if noTween then
+				Indicator.BackgroundColor3 = ValueBool and GREEN or RED
+			else
+				Tween(Indicator, {BackgroundColor3 = ValueBool and GREEN or RED})
 			end
-
-			-- initial
-			Indicator.BackgroundColor3 = ValueBool and GREEN or RED
-
-			-- click
-			HiddenButton.MouseButton1Down:Connect(function()
-				if ButtonEnabled then
-					if ToggleOnClick then
-						apply(not ValueBool, false)
-						if typeof(OnClick) == "function" then
-							OnClick(ValueBool)
-						end
-					else
-						if typeof(OnClick) == "function" then
-							OnClick(ValueBool)
-						end
-					end
-				end
-
-				-- same click feedback as your button style
-				Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(45, 45, 45)})
-				Tween(HiddenButton, {TextTransparency = 0.5})
-				task.wait(TweenTime)
-				Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(35, 35, 35)})
-				Tween(HiddenButton, {TextTransparency = 0})
-			end)
-
-			-- getter polling
-			local GetterConn = nil
-			if typeof(Getter) == "function" then
-				local acc = 0
-				GetterConn = RunService.Heartbeat:Connect(function(dt)
-					if not ButtonContainer or not ButtonContainer.Parent then
-						if GetterConn then GetterConn:Disconnect() GetterConn = nil end
-						return
-					end
-
-					acc += dt
-					if acc < RefreshRate then return end
-					acc = 0
-
-					local ok, res = pcall(Getter)
-					if ok and res ~= nil then
-						apply(res, false)
-					end
-				end)
-			end
-
-			-- handle
-			local Handle = {}
-			function Handle:Get()
-				return ValueBool
-			end
-			function Handle:Set(newBool)
-				apply(newBool, false)
-			end
-			function Handle:Destroy()
-				if GetterConn then GetterConn:Disconnect() GetterConn = nil end
-				if ButtonContainer then ButtonContainer:Destroy() end
-			end
-			return Handle
+			return
 		end
+
+		ValueBool = newBool
+		if noTween then
+			Indicator.BackgroundColor3 = ValueBool and GREEN or RED
+		else
+			Tween(Indicator, {BackgroundColor3 = ValueBool and GREEN or RED})
+		end
+	end
+
+	-- initial
+	Indicator.BackgroundColor3 = ValueBool and GREEN or RED
+
+	-- click
+	HiddenButton.MouseButton1Down:Connect(function()
+		if ButtonEnabled then
+			if ToggleOnClick then
+				apply(not ValueBool, false)
+				if typeof(OnClick) == "function" then
+					OnClick(ValueBool)
+				end
+			else
+				if typeof(OnClick) == "function" then
+					OnClick(ValueBool)
+				end
+			end
+		end
+
+		-- click feedback
+		Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(45, 45, 45)})
+		Tween(HiddenButton, {TextTransparency = 0.5})
+		task.wait(TweenTime)
+		Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(35, 35, 35)})
+		Tween(HiddenButton, {TextTransparency = 0})
+	end)
+
+	-- getter polling
+	local GetterConn = nil
+	if typeof(Getter) == "function" then
+		local acc = 0
+		GetterConn = RunService.Heartbeat:Connect(function(dt)
+			if not ButtonContainer or not ButtonContainer.Parent then
+				if GetterConn then GetterConn:Disconnect() GetterConn = nil end
+				return
+			end
+
+			acc += dt
+			if acc < RefreshRate then return end
+			acc = 0
+
+			local ok, res = pcall(Getter)
+			if ok and res ~= nil then
+				apply(res, false)
+			end
+		end)
+	end
+
+	-- handle
+	local Handle = {}
+	function Handle:Get()
+		return ValueBool
+	end
+	function Handle:Set(newBool)
+		apply(newBool, false)
+	end
+	function Handle:Destroy()
+		if GetterConn then GetterConn:Disconnect() GetterConn = nil end
+		if ButtonContainer then ButtonContainer:Destroy() end
+	end
+	return Handle
+end
 
 		
 		--// DROPDOWN (returns handle)
