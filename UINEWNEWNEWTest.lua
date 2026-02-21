@@ -1,11 +1,4 @@
---// ========================
---// WetHub UI Library (FIXED + CONFIG-READY HANDLES)
---// - NO FILE FUNCTIONS (safe on executors with no writefile/readfile)
---// - Adds handles: Toggle/Slider/Dropdown/ColourPicker -> Get/Set/Destroy
---// - Adds ProfileBar (avatar + welcome) under tabs
---// - Fixes: ColourPicker order, Search empty restore, Tab matching, collapse hiding ProfileBar
---// - Includes Notify() (UIListLayout-safe slide)
---// ========================
+--V3
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
