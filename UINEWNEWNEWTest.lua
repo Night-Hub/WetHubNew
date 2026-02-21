@@ -203,6 +203,36 @@ function UILibrary.Load(GUITitle)
 	MainFrame.ImageColor3 = Color3.fromRGB(30, 30, 30)
 	MainFrame.Parent = ContainerFrame
 
+	--// MAINFRAME BORDER (RGB)
+	local MainFrameStroke = Instance.new("UIStroke")
+	MainFrameStroke.Name = "MainFrameStroke"
+	MainFrameStroke.Thickness = 2
+	MainFrameStroke.Transparency = 0 -- 0 = visible, 1 = invisible
+	MainFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	MainFrameStroke.Parent = MainFrame
+
+	-- animate stroke color (auto-disconnect on destroy)
+	local strokeStart = os.clock()
+	local strokeConn
+	strokeConn = RunService.RenderStepped:Connect(function()
+		if not MainFrame or not MainFrame.Parent then
+			if strokeConn then strokeConn:Disconnect() end
+			return
+		end
+
+		local t = os.clock() - strokeStart
+		local hue = (t * 0.35) % 1
+		MainFrameStroke.Color = Color3.fromHSV(hue, 1, 1)
+	end)
+
+	-- extra safety: disconnect if gui is removed
+	MainFrame.AncestryChanged:Connect(function(_, parent)
+		if not parent and strokeConn then
+			strokeConn:Disconnect()
+			strokeConn = nil
+		end
+	end)
+	
 	-- Title bar
 	local TitleBar = RoundBox(5)
 	TitleBar.Name = "TitleBar"
