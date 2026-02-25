@@ -95,13 +95,18 @@ local function SearchIcon(isButton)
 end
 
 local function RoundBox(cornerRadius, isButton)
-	local img = Instance.new(isButton and "ImageButton" or "ImageLabel")
-	img.BackgroundTransparency = 1
-	img.Image = "rbxassetid://3570695787"
-	img.SliceCenter = Rect.new(100, 100, 100, 100)
-	img.SliceScale = math.clamp((cornerRadius or 5) * 0.01, 0.01, 1)
-	img.ScaleType = Enum.ScaleType.Slice
-	return img
+	local obj = Instance.new(isButton and "TextButton" or "Frame")
+	obj.Name = "RoundBox"
+	obj.BorderSizePixel = 0
+	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- callers usually recolor this
+	obj.AutoButtonColor = false
+
+	-- rounded corners
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, cornerRadius or 5)
+	corner.Parent = obj
+
+	return obj
 end
 
 local function DropShadow()
@@ -203,36 +208,6 @@ function UILibrary.Load(GUITitle)
 	MainFrame.ImageColor3 = Color3.fromRGB(30, 30, 30)
 	MainFrame.Parent = ContainerFrame
 
-	--// MAINFRAME BORDER (RGB)
-	local MainFrameStroke = Instance.new("UIStroke")
-	MainFrameStroke.Name = "MainFrameStroke"
-	MainFrameStroke.Thickness = 2
-	MainFrameStroke.Transparency = 0 -- 0 = visible, 1 = invisible
-	MainFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	MainFrameStroke.Parent = MainFrame
-
-	-- animate stroke color (auto-disconnect on destroy)
-	local strokeStart = os.clock()
-	local strokeConn
-	strokeConn = RunService.RenderStepped:Connect(function()
-		if not MainFrame or not MainFrame.Parent then
-			if strokeConn then strokeConn:Disconnect() end
-			return
-		end
-
-		local t = os.clock() - strokeStart
-		local hue = (t * 0.35) % 1
-		MainFrameStroke.Color = Color3.fromHSV(hue, 1, 1)
-	end)
-
-	-- extra safety: disconnect if gui is removed
-	MainFrame.AncestryChanged:Connect(function(_, parent)
-		if not parent and strokeConn then
-			strokeConn:Disconnect()
-			strokeConn = nil
-		end
-	end)
-	
 	-- Title bar
 	local TitleBar = RoundBox(5)
 	TitleBar.Name = "TitleBar"
@@ -664,12 +639,12 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 
 	-- focus anim
 	Input.Focused:Connect(function()
-		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(42,42,42)})
+		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(58,58,58)})
 		Tween(FocusStroke, {Transparency = 0})
 	end)
 
 	Input.FocusLost:Connect(function()
-		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(35,35,35)})
+		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(58,58,58)})
 		Tween(FocusStroke, {Transparency = 1})
 		updateValue(Input.Text, true)
 	end)
