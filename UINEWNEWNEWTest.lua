@@ -551,133 +551,158 @@ function UILibrary.Load(GUITitle)
 			return Handle
 		end
 
-		--// TEXTBOX (returns handle)
-		--// Options:
-		--//   Options.placeholder (string) default "Type..."
-		--//   Options.clearOnFocus (bool) default false
-		--//   Options.numbersOnly (bool) default false
-		--//   Options.maxLength (number) default 200
-		--//   Options.keepCallbackOnSet (bool) default false (if true, Handle:Set fires Callback)
-		function PageLibrary.AddTextBox(Text, DefaultText, Callback, Options, Parent)
-			Text = tostring(Text or "TextBox")
-			DefaultText = tostring(DefaultText or "")
-			Options = Options or {}
+--// TEXTBOX (improved, modern, placeholder-native, animated focus)
+--// Returns handle: :Get(), :Set(value), :Destroy()
+--// Options:
+--//   placeholder (string)   -> fallback hint text
+--//   numbersOnly (bool)     -> restrict input
+--//   maxLength (number)     -> char limit
+--//   live (bool)            -> callback fires while typing (default false = on FocusLost)
+--//   clearOnFocus (bool)    -> clears typed text on focus
 
-			local Placeholder = tostring(Options.placeholder or Options.Placeholder or "Type...")
-			local ClearOnFocus = (Options.clearOnFocus == true) or (Options.ClearOnFocus == true)
-			local NumbersOnly = (Options.numbersOnly == true) or (Options.NumbersOnly == true)
-			local MaxLength = tonumber(Options.maxLength or Options.MaxLength or 200) or 200
-			local FireCallbackOnSet = (Options.keepCallbackOnSet == true) or (Options.FireCallbackOnSet == true)
+function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
+	Text = tostring(Text or "TextBox")
+	DefaultValue = tostring(DefaultValue or "")
+	Options = Options or {}
 
-			local CurrentText = DefaultText
+	local Placeholder = tostring(Options.placeholder or DefaultValue or "Enter value...")
+	local NumbersOnly = Options.numbersOnly == true
+	local MaxLength = tonumber(Options.maxLength or 200)
+	local Live = Options.live == true
+	local ClearOnFocus = Options.clearOnFocus == true
 
-			-- container
-			local BoxContainer = Frame()
-			BoxContainer.Name = Text .. "TEXTBOX"
-			BoxContainer.Size = UDim2.new(1, 0, 0, 20)
-			BoxContainer.BackgroundTransparency = 1
-			BoxContainer.Parent = Parent or DisplayPage
+	local CurrentText = ""
+	local OriginalValue = DefaultValue
 
-			local BoxForeground = RoundBox(5)
-			BoxForeground.Name = "BoxForeground"
-			BoxForeground.Size = UDim2.new(1, 0, 1, 0)
-			BoxForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
-			BoxForeground.Parent = BoxContainer
+	-- container
+	local BoxContainer = Frame()
+	BoxContainer.Name = Text .. "TEXTBOX"
+	BoxContainer.Size = UDim2.new(1, 0, 0, 22)
+	BoxContainer.BackgroundTransparency = 1
+	BoxContainer.Parent = Parent or DisplayPage
 
-			-- label (left)
-			local Label = TextLabel(Text .. ":", 12)
-			Label.Name = "Label"
-			Label.TextXAlignment = Enum.TextXAlignment.Left
-			Label.TextTransparency = 0.25
-			Label.Size = UDim2.new(0.45, 0, 1, 0)
-			Label.Position = UDim2.new(0, 8, 0, 0)
-			Label.Parent = BoxForeground
+	-- background
+	local BoxForeground = RoundBox(6)
+	BoxForeground.Size = UDim2.new(1, 0, 1, 0)
+	BoxForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+	BoxForeground.Parent = BoxContainer
 
-			-- input (right)
-			local Input = TextBox(DefaultText, 12)
-			Input.Name = "Input"
-			Input.ClearTextOnFocus = ClearOnFocus
-			Input.PlaceholderText = Placeholder
-			Input.TextXAlignment = Enum.TextXAlignment.Right
-			Input.TextTransparency = 0
-			Input.Size = UDim2.new(0.55, -14, 1, 0)
-			Input.Position = UDim2.new(0.45, 0, 0, 0)
-			Input.Parent = BoxForeground
+	-- label (left)
+	local Label = TextLabel(Text, 12)
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.TextTransparency = 0.25
+	Label.Size = UDim2.new(0.42, 0, 1, 0)
+	Label.Position = UDim2.new(0, 8, 0, 0)
+	Label.Parent = BoxForeground
 
-			-- keep textbox visually aligned
-			local Pad = Instance.new("UIPadding")
-			Pad.PaddingLeft = UDim.new(0, 0)
-			Pad.PaddingRight = UDim.new(0, 8)
-			Pad.Parent = Input
+	-- input field (right)
+	local Input = Instance.new("TextBox")
+	Input.Name = "Input"
+	Input.BackgroundTransparency = 1
+	Input.Font = MainFont
+	Input.TextSize = 12
+	Input.TextColor3 = Color3.fromRGB(255,255,255)
+	Input.Text = ""
+	Input.PlaceholderText = Placeholder
+	Input.PlaceholderColor3 = Color3.fromRGB(180,180,180)
+	Input.TextXAlignment = Enum.TextXAlignment.Right
+	Input.ClearTextOnFocus = ClearOnFocus
+	Input.Size = UDim2.new(0.58, -12, 1, 0)
+	Input.Position = UDim2.new(0.42, 0, 0, 0)
+	Input.Parent = BoxForeground
 
-			-- input rules
-			Input:GetPropertyChangedSignal("Text"):Connect(function()
-				local txt = tostring(Input.Text or "")
+	local Pad = Instance.new("UIPadding")
+	Pad.PaddingRight = UDim.new(0, 8)
+	Pad.Parent = Input
 
-				if MaxLength > 0 and #txt > MaxLength then
-					txt = txt:sub(1, MaxLength)
-				end
+	-- focus highlight
+	local FocusStroke = Instance.new("UIStroke")
+	FocusStroke.Thickness = 1.5
+	FocusStroke.Transparency = 1
+	FocusStroke.Color = Color3.fromRGB(0, 255, 109)
+	FocusStroke.Parent = BoxForeground
 
-				if NumbersOnly then
-					-- allow digits + optional leading "-" + optional single "."
-					local out = {}
-					local hasDot = false
-					for i = 1, #txt do
-						local ch = txt:sub(i, i)
-						if ch:match("%d") then
-							out[#out + 1] = ch
-						elseif ch == "-" and i == 1 then
-							out[#out + 1] = ch
-						elseif ch == "." and not hasDot then
-							hasDot = true
-							out[#out + 1] = ch
-						end
-					end
-					txt = table.concat(out)
-				end
+	local function updateValue(txt, fire)
+		txt = tostring(txt or "")
 
-				if Input.Text ~= txt then
-					Input.Text = txt
-					return
-				end
-
-				CurrentText = txt
-			end)
-
-			-- commit callback on focus lost (clean + avoids spamming while typing)
-			Input.FocusLost:Connect(function(_enterPressed)
-				if typeof(Callback) == "function" then
-					Callback(CurrentText)
-				end
-
-				-- subtle feedback
-				Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(45, 45, 45)})
-				task.wait(TweenTime)
-				Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(35, 35, 35)})
-			end)
-
-			-- initial callback (matches your other controls)
-			if typeof(Callback) == "function" then
-				Callback(CurrentText)
-			end
-
-			local Handle = {}
-			function Handle:Get()
-				return CurrentText
-			end
-			function Handle:Set(val, fireCallbacks)
-				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
-				CurrentText = tostring(val or "")
-				Input.Text = CurrentText
-				if fireCallbacks and FireCallbackOnSet and typeof(Callback) == "function" then
-					Callback(CurrentText)
-				end
-			end
-			function Handle:Destroy()
-				if BoxContainer then BoxContainer:Destroy() end
-			end
-			return Handle
+		if MaxLength > 0 and #txt > MaxLength then
+			txt = txt:sub(1, MaxLength)
 		end
+
+		if NumbersOnly then
+			local out, hasDot = {}, false
+			for i = 1, #txt do
+				local ch = txt:sub(i,i)
+				if ch:match("%d") then
+					out[#out+1] = ch
+				elseif ch == "-" and i == 1 then
+					out[#out+1] = ch
+				elseif ch == "." and not hasDot then
+					hasDot = true
+					out[#out+1] = ch
+				end
+			end
+			txt = table.concat(out)
+		end
+
+		if Input.Text ~= txt then
+			Input.Text = txt
+			return
+		end
+
+		CurrentText = txt
+
+		if fire and typeof(Callback) == "function" then
+			Callback(txt == "" and OriginalValue or txt)
+		end
+	end
+
+	-- typing
+	Input:GetPropertyChangedSignal("Text"):Connect(function()
+		updateValue(Input.Text, Live)
+	end)
+
+	-- focus anim
+	Input.Focused:Connect(function()
+		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(42,42,42)})
+		Tween(FocusStroke, {Transparency = 0})
+	end)
+
+	Input.FocusLost:Connect(function()
+		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(35,35,35)})
+		Tween(FocusStroke, {Transparency = 1})
+		updateValue(Input.Text, true)
+	end)
+
+	-- initial callback
+	if typeof(Callback) == "function" then
+		Callback(OriginalValue)
+	end
+
+	-- handle
+	local Handle = {}
+
+	function Handle:Get()
+		return (CurrentText == "" and OriginalValue) or CurrentText
+	end
+
+	function Handle:Set(val, fireCallbacks)
+		val = tostring(val or "")
+		OriginalValue = val
+		Input.Text = ""
+		Input.PlaceholderText = val
+		CurrentText = ""
+		if fireCallbacks and typeof(Callback) == "function" then
+			Callback(val)
+		end
+	end
+
+	function Handle:Destroy()
+		if BoxContainer then BoxContainer:Destroy() end
+	end
+
+	return Handle
+end
 		
 		--// SLIDER (returns handle)
 		function PageLibrary.AddSlider(Text, ConfigurationDictionary, Callback, Parent)
