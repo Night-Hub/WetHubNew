@@ -1,4 +1,4 @@
---V3
+--V4
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -513,7 +513,7 @@ function UILibrary.Load(GUITitle)
 			local BlankForeground = RoundBox(5)
 			BlankForeground.Name = "BlankForeground"
 			BlankForeground.Size = UDim2.new(1, 0, 1, 0)
-			BlankForeground.ImageTransparency = 1
+			BlankForeground.BackgroundTransparency = 1
 			BlankForeground.Parent = BlankContainer
 
 			local Handle = {}
@@ -591,7 +591,7 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 	local FocusStroke = Instance.new("UIStroke")
 	FocusStroke.Thickness = 1.5
 	FocusStroke.Transparency = 1
-	FocusStroke.Color = Color3.fromRGB(0, 255, 109)
+	FocusStroke.Color = Color3.fromRGB(100,100,100)
 	FocusStroke.Parent = BoxForeground
 
 	local function updateValue(txt, fire)
@@ -641,7 +641,7 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 	end)
 
 	Input.FocusLost:Connect(function()
-		Tween(BoxForeground, {BackgroundColor3 = Color3.fromRGB(58,58,58)})
+		Tween(BoxForeground, {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
 		Tween(FocusStroke, {Transparency = 1})
 		updateValue(Input.Text, true)
 	end)
@@ -715,7 +715,7 @@ end
 			SliderFill.Size = UDim2.new(DefaultScale, 0, 1, 0)
 			SliderFill.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 			SliderFill.ZIndex = 5
-			SliderFill.ImageTransparency = 0.7
+			SliderFill.BackgroundTransparency = 0.7
 			SliderFill.Parent = SliderButton
 
 			local function setByScale(XScale, fireCallbacks)
@@ -823,7 +823,7 @@ end
 			EffectFrame.Size = UDim2.new(0, 2, 0.6, 0)
 			EffectFrame.Parent = ToggleContainer
 
-			RightTick.ImageTransparency = ThisToggle and 0 or 1
+			RightTick.BackgroundTransparency = ThisToggle and 0 or 1
 			RightTick.Parent = ToggleRightSide
 
 			local ToggleButton = TextButton(Text, 12)
@@ -835,7 +835,7 @@ end
 				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
 				ThisToggle = (newValue == true)
 				Tween(EffectFrame, {BackgroundColor3 = ThisToggle and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160)})
-				Tween(RightTick, {ImageTransparency = ThisToggle and 0 or 1})
+				Tween(RightTick, {BackgroundTransparency = ThisToggle and 0 or 1})
 
 				if fireCallbacks and typeof(Callback) == "function" then
 					Callback(ThisToggle)
@@ -1438,7 +1438,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	-- fade in
 	Card.BackgroundTransparency = 1
 	TitleBar.BackgroundTransparency = 1
-	Logo.ImageTransparency = 1
+	Logo.BackgroundTransparency = 1
 	TitleLabel.TextTransparency = 1
 	Body.TextTransparency = 1
 	BarBack.BackgroundTransparency = 1
@@ -1447,7 +1447,7 @@ function UILibrary.Notify(Title, Text, Duration, LogoImage)
 	TweenService:Create(Slide, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
 	TweenService:Create(Card, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(TitleBar, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
-	TweenService:Create(Logo, TweenInfo.new(0.14), {ImageTransparency = 0}):Play()
+	TweenService:Create(Logo, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
 	TweenService:Create(TitleLabel, TweenInfo.new(0.14), {TextTransparency = 0}):Play()
 	TweenService:Create(Body, TweenInfo.new(0.14), {TextTransparency = 0}):Play()
 	TweenService:Create(BarBack, TweenInfo.new(0.14), {BackgroundTransparency = 0}):Play()
