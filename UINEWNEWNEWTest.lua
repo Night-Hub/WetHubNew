@@ -523,7 +523,7 @@ function UILibrary.Load(GUITitle)
 			return Handle
 		end
 
---// TEXTBOX (improved, modern, placeholder-native, animated focus)
+		--// TEXTBOX (improved, modern, placeholder-native, animated focus, no overflow)
 --// Returns handle: :Get(), :Set(value), :Destroy()
 --// Options:
 --//   placeholder (string)   -> fallback hint text
@@ -557,12 +557,14 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 	local BoxForeground = RoundBox(6)
 	BoxForeground.Size = UDim2.new(1, 0, 1, 0)
 	BoxForeground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	BoxForeground.ClipsDescendants = true -- IMPORTANT: stops text leaking outside
 	BoxForeground.Parent = BoxContainer
 
 	-- label (left)
 	local Label = TextLabel(Text, 12)
 	Label.TextXAlignment = Enum.TextXAlignment.Left
 	Label.TextTransparency = 0.25
+	Label.TextTruncate = Enum.TextTruncate.AtEnd -- safety
 	Label.Size = UDim2.new(0.42, 0, 1, 0)
 	Label.Position = UDim2.new(0, 8, 0, 0)
 	Label.Parent = BoxForeground
@@ -573,12 +575,20 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 	Input.BackgroundTransparency = 1
 	Input.Font = MainFont
 	Input.TextSize = 12
-	Input.TextColor3 = Color3.fromRGB(255,255,255)
+	Input.TextColor3 = Color3.fromRGB(255, 255, 255)
+
 	Input.Text = ""
 	Input.PlaceholderText = Placeholder
-	Input.PlaceholderColor3 = Color3.fromRGB(180,180,180)
+	Input.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+
 	Input.TextXAlignment = Enum.TextXAlignment.Right
 	Input.ClearTextOnFocus = ClearOnFocus
+
+	-- IMPORTANT: keep it single-line + truncate overflow
+	Input.MultiLine = false
+	Input.TextWrapped = false
+	Input.TextTruncate = Enum.TextTruncate.AtEnd
+
 	Input.Size = UDim2.new(0.58, -12, 1, 0)
 	Input.Position = UDim2.new(0.42, 0, 0, 0)
 	Input.Parent = BoxForeground
@@ -591,7 +601,7 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 	local FocusStroke = Instance.new("UIStroke")
 	FocusStroke.Thickness = 1.5
 	FocusStroke.Transparency = 1
-	FocusStroke.Color = Color3.fromRGB(100,100,100)
+	FocusStroke.Color = Color3.fromRGB(100, 100, 100)
 	FocusStroke.Parent = BoxForeground
 
 	local function updateValue(txt, fire)
@@ -604,14 +614,14 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 		if NumbersOnly then
 			local out, hasDot = {}, false
 			for i = 1, #txt do
-				local ch = txt:sub(i,i)
+				local ch = txt:sub(i, i)
 				if ch:match("%d") then
-					out[#out+1] = ch
+					out[#out + 1] = ch
 				elseif ch == "-" and i == 1 then
-					out[#out+1] = ch
+					out[#out + 1] = ch
 				elseif ch == "." and not hasDot then
 					hasDot = true
-					out[#out+1] = ch
+					out[#out + 1] = ch
 				end
 			end
 			txt = table.concat(out)
@@ -636,7 +646,7 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 
 	-- focus anim
 	Input.Focused:Connect(function()
-		Tween(BoxForeground, {BackgroundColor3 = Color3.fromRGB(58,58,58)})
+		Tween(BoxForeground, {BackgroundColor3 = Color3.fromRGB(58, 58, 58)})
 		Tween(FocusStroke, {Transparency = 0})
 	end)
 
