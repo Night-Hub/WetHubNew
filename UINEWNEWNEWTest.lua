@@ -202,13 +202,13 @@ function UILibrary.Load(GUITitle)
 	MainFrame.ClipsDescendants = true
 	MainFrame.Size = UDim2.new(1, -50, 1, -30)
 	MainFrame.Position = UDim2.new(0, 25, 0, 15)
-	MainFrame.ImageColor3 = Color3.fromRGB(30, 30, 30)
+	MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 	MainFrame.Parent = ContainerFrame
 
 	-- Title bar
 	local TitleBar = RoundBox(5)
 	TitleBar.Name = "TitleBar"
-	TitleBar.ImageColor3 = Color3.fromRGB(40, 40, 40)
+	TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	TitleBar.Size = UDim2.new(1, -10, 0, 20)
 	TitleBar.Position = UDim2.new(0, 5, 0, 5)
 	TitleBar.Parent = MainFrame
@@ -225,7 +225,7 @@ function UILibrary.Load(GUITitle)
 
 	local DisplayFrame = RoundBox(5)
 	DisplayFrame.Name = "Display"
-	DisplayFrame.ImageColor3 = Color3.fromRGB(20, 20, 20)
+	DisplayFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	DisplayFrame.Position = UDim2.new(0, 110, 0, 30)
 	DisplayFrame.Size = UDim2.new(1, -115, 0, 235)
 	DisplayFrame.Parent = MainFrame
@@ -238,7 +238,7 @@ function UILibrary.Load(GUITitle)
 
 	local ProfileBar = RoundBox(5)
 	ProfileBar.Name = "ProfileBar"
-	ProfileBar.ImageColor3 = Color3.fromRGB(40, 40, 40)
+	ProfileBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	ProfileBar.Size = UDim2.new(0, 100, 0, ProfileBarHeight)
 	ProfileBar.Position = UDim2.new(0, 5, 1, -(ProfileBarHeight + ProfileBarPadding))
 	ProfileBar.Parent = MainFrame
@@ -360,7 +360,7 @@ function UILibrary.Load(GUITitle)
 			if Button:IsA("GuiObject") then
 				local isThis = (Button.Name:lower() == tabNameLower)
 				local inner = Button:FindFirstChild(Button.Name .. "Button")
-				Tween(Button, {ImageColor3 = isThis and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)})
+				Tween(Button, {BackgroundColor3 = isThis and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)})
 				if inner and inner:IsA("TextButton") then
 					Tween(inner, {TextTransparency = isThis and 0 or 0.5})
 				end
@@ -383,7 +383,7 @@ function UILibrary.Load(GUITitle)
 		PageContainer.Name = PageTitle
 		PageContainer.Size = UDim2.new(1, 0, 0, 20)
 		PageContainer.LayoutOrder = TabCount
-		PageContainer.ImageColor3 = (TabCount == 0) and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)
+		PageContainer.BackgroundColor3 = (TabCount == 0) and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)
 		PageContainer.Parent = MenuBar
 
 		local PageButton = TextButton(PageTitle, 14)
@@ -439,7 +439,7 @@ function UILibrary.Load(GUITitle)
 			local ButtonForeground = RoundBox(5)
 			ButtonForeground.Name = "ButtonForeground"
 			ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
-			ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			ButtonForeground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			ButtonForeground.Parent = ButtonContainer
 
 			if Underline then
@@ -459,10 +459,10 @@ function UILibrary.Load(GUITitle)
 				if typeof(Callback) == "function" then
 					Callback()
 				end
-				Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(45, 45, 45)})
+				Tween(ButtonForeground, {BackgroundColor3 = Color3.fromRGB(45, 45, 45)})
 				Tween(HiddenButton, {TextTransparency = 0.5})
 				task.wait(TweenTime)
-				Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(35, 35, 35)})
+				Tween(ButtonForeground, {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
 				Tween(HiddenButton, {TextTransparency = 0})
 			end)
 
@@ -483,7 +483,7 @@ function UILibrary.Load(GUITitle)
 
 			local LabelForeground = RoundBox(5)
 			LabelForeground.Name = "LabelForeground"
-			LabelForeground.ImageColor3 = Color3.fromRGB(45, 45, 45)
+			LabelForeground.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 			LabelForeground.Size = UDim2.new(1, 0, 1, 0)
 			LabelForeground.Parent = LabelContainer
 
@@ -556,7 +556,7 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 	-- background
 	local BoxForeground = RoundBox(6)
 	BoxForeground.Size = UDim2.new(1, 0, 1, 0)
-	BoxForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+	BoxForeground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 	BoxForeground.Parent = BoxContainer
 
 	-- label (left)
@@ -636,12 +636,12 @@ function PageLibrary.AddTextBox(Text, DefaultValue, Callback, Options, Parent)
 
 	-- focus anim
 	Input.Focused:Connect(function()
-		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(58,58,58)})
+		Tween(BoxForeground, {BackgroundColor3 = Color3.fromRGB(58,58,58)})
 		Tween(FocusStroke, {Transparency = 0})
 	end)
 
 	Input.FocusLost:Connect(function()
-		Tween(BoxForeground, {ImageColor3 = Color3.fromRGB(58,58,58)})
+		Tween(BoxForeground, {BackgroundColor3 = Color3.fromRGB(58,58,58)})
 		Tween(FocusStroke, {Transparency = 1})
 		updateValue(Input.Text, true)
 	end)
@@ -702,7 +702,7 @@ end
 
 			local SliderForeground = RoundBox(5)
 			SliderForeground.Name = "SliderForeground"
-			SliderForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			SliderForeground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			SliderForeground.Size = UDim2.new(1, 0, 1, 0)
 			SliderForeground.Parent = SliderContainer
 
@@ -713,7 +713,7 @@ end
 
 			local SliderFill = RoundBox(5)
 			SliderFill.Size = UDim2.new(DefaultScale, 0, 1, 0)
-			SliderFill.ImageColor3 = Color3.fromRGB(70, 70, 70)
+			SliderFill.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 			SliderFill.ZIndex = 5
 			SliderFill.ImageTransparency = 0.7
 			SliderFill.Parent = SliderButton
@@ -801,12 +801,12 @@ end
 			local FlatRight = Frame()
 
 			ToggleLeftSide.Size = UDim2.new(1, -22, 1, 0)
-			ToggleLeftSide.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			ToggleLeftSide.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			ToggleLeftSide.Parent = ToggleContainer
 
 			ToggleRightSide.Position = UDim2.new(1, -20, 0, 0)
 			ToggleRightSide.Size = UDim2.new(0, 20, 1, 0)
-			ToggleRightSide.ImageColor3 = Color3.fromRGB(45, 45, 45)
+			ToggleRightSide.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 			ToggleRightSide.Parent = ToggleContainer
 
 			FlatLeft.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -891,7 +891,7 @@ function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
 	local ButtonForeground = RoundBox(5)
 	ButtonForeground.Name = "ButtonForeground"
 	ButtonForeground.Size = UDim2.new(1, 0, 1, 0)
-	ButtonForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+	ButtonForeground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 	ButtonForeground.Parent = ButtonContainer
 
 	-- RIGHT PADDING / SIZE
@@ -961,10 +961,10 @@ function PageLibrary.AddValueButton(Text, Default, Options, OnClick, Getter)
 		end
 
 		-- click feedback
-		Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(45, 45, 45)})
+		Tween(ButtonForeground, {BackgroundColor3 = Color3.fromRGB(45, 45, 45)})
 		Tween(HiddenButton, {TextTransparency = 0.5})
 		task.wait(TweenTime)
-		Tween(ButtonForeground, {ImageColor3 = Color3.fromRGB(35, 35, 35)})
+		Tween(ButtonForeground, {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
 		Tween(HiddenButton, {TextTransparency = 0})
 	end)
 
@@ -1021,7 +1021,7 @@ end
 
 			local DropdownForeground = RoundBox(5)
 			DropdownForeground.ClipsDescendants = true
-			DropdownForeground.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			DropdownForeground.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			DropdownForeground.Size = UDim2.new(1, 0, 1, 0)
 			DropdownForeground.Parent = DropdownContainer
 
@@ -1126,15 +1126,15 @@ end
 			local PickerFrame = RoundBox(5)
 
 			PickerLeftSide.Size = UDim2.new(1, -22, 1, 0)
-			PickerLeftSide.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			PickerLeftSide.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			PickerLeftSide.Parent = PickerContainer
 
 			PickerRightSide.Size = UDim2.new(0, 20, 1, 0)
 			PickerRightSide.Position = UDim2.new(1, -20, 0, 0)
-			PickerRightSide.ImageColor3 = DefaultColour
+			PickerRightSide.BackgroundColor3 = DefaultColour
 			PickerRightSide.Parent = PickerContainer
 
-			PickerFrame.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			PickerFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			PickerFrame.Size = UDim2.new(1, -22, 0, 60)
 			PickerFrame.Position = UDim2.new(0, 0, 0, 20)
 			PickerFrame.Parent = PickerContainer
@@ -1186,7 +1186,7 @@ end
 			ColourTracker:GetPropertyChangedSignal("Value"):Connect(function()
 				local c = ColourTracker.Value
 				EffectRight.BackgroundColor3 = c
-				PickerRightSide.ImageColor3 = c
+				PickerRightSide.BackgroundColor3 = c
 			end)
 
 			local PickerToggle = false
@@ -1229,7 +1229,7 @@ end
 		if SearchBarIncluded then
 			local SearchBarContainer = RoundBox(5)
 			SearchBarContainer.Name = "SearchBar"
-			SearchBarContainer.ImageColor3 = Color3.fromRGB(35, 35, 35)
+			SearchBarContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			SearchBarContainer.Size = UDim2.new(1, 0, 0, 20)
 			SearchBarContainer.Parent = DisplayPage
 			SearchBarContainer.LayoutOrder = -999999
