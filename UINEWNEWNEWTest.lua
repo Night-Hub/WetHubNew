@@ -1,4 +1,4 @@
---V4
+--V3
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -823,7 +823,7 @@ end
 			EffectFrame.Size = UDim2.new(0, 2, 0.6, 0)
 			EffectFrame.Parent = ToggleContainer
 
-			RightTick.BackgroundTransparency = ThisToggle and 0 or 1
+			RightTick.ImageTransparency = ThisToggle and 0 or 1
 			RightTick.Parent = ToggleRightSide
 
 			local ToggleButton = TextButton(Text, 12)
@@ -835,7 +835,7 @@ end
 				fireCallbacks = (fireCallbacks == nil) and true or (fireCallbacks == true)
 				ThisToggle = (newValue == true)
 				Tween(EffectFrame, {BackgroundColor3 = ThisToggle and Color3.fromRGB(0, 255, 109) or Color3.fromRGB(255, 160, 160)})
-				Tween(RightTick, {BackgroundTransparency = ThisToggle and 0 or 1})
+				Tween(RightTick, {ImageTransparency = ThisToggle and 0 or 1})
 
 				if fireCallbacks and typeof(Callback) == "function" then
 					Callback(ThisToggle)
