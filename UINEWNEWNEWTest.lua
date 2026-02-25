@@ -95,13 +95,10 @@ local function SearchIcon(isButton)
 end
 
 local function RoundBox(cornerRadius, isButton)
-	local obj = Instance.new(isButton and "TextButton" or "Frame")
-	obj.Name = "RoundBox"
+	local obj = Instance.new(isButton and "ImageButton" or "Frame")
 	obj.BorderSizePixel = 0
-	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- callers usually recolor this
-	obj.AutoButtonColor = false
+	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 
-	-- rounded corners
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, cornerRadius or 5)
 	corner.Parent = obj
